@@ -1,0 +1,1178 @@
+[
+ {
+  "nome": "Meio da asa",
+  "unidade": "kg",
+  "categoria": "Aves",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Coxinha da asa",
+  "unidade": "kg",
+  "categoria": "Aves",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Frango caipira",
+  "unidade": "kg",
+  "categoria": "Aves",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Adoçante Zero - 200mL",
+  "unidade": "und",
+  "categoria": "Bebidas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Café em pó - 500g",
+  "unidade": "und",
+  "categoria": "Bebidas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Gelo",
+  "unidade": "kg",
+  "categoria": "Bebidas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de Pequi",
+  "unidade": "und",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Caldo de Carne 1kg",
+  "unidade": "und",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Bacon fatiado",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Filé de peixe pangasius",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Contra filé",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Alcatra",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Lagarto",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Peito bovino",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Cupim",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Maça do Peito",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Fraldinha",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Picanha",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Maminha",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Capa de contra-filé",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Sobrecoxa - file de coxa/sobrecoxa",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Filé de peito de frango",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Linguiça suina",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Linguiça de Frango",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Coração de galinha",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Peixe -Dourada",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Filé de Sassami",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Linguiça calabresa",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Costela P A",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pepino",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Lombo suino",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pequi 1 kg",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Costela Gaucha",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Costela Suina",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Moela 1kg",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pernil",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Toucinho",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Linguiça fina",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Bacon pedaço",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Bacon  fatiado",
+  "unidade": "kg",
+  "categoria": "Carnes",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Canela Moida 500 g",
+  "unidade": "und",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Molho Shoyu 3L",
+  "unidade": "und",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Vinagre de Álcool - 5L",
+  "unidade": "und",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Folha de Louro 250g",
+  "unidade": "kg",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Gergelim branco 150 g",
+  "unidade": "kg",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Gergelim preto 150 g",
+  "unidade": "kg",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Colorau  0,250 g",
+  "unidade": "kg",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Açafrão 0,250 g",
+  "unidade": "kg",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Oregano",
+  "unidade": "kg",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Bicarbonato",
+  "unidade": "und",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Ketchup",
+  "unidade": "und",
+  "categoria": "Condimentos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Maionese - 1,02 Kg",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Cogumelo Fatiado - 3,2 kg",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Caldo de galinha 1kg",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Hondashi - 500 g",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Grao de bico - 500 g",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Sal sache",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Achocolatado 750 g",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Coxa e sobrecoxa",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Acem",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Dobradinha",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Kibe 0,480 g",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Massa de pastel 200 g",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Molho barbecue 3kg",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Coxao mole",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Apresuntado",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Rabada",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Figado",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Açúcar Cristalizado  5 Kg",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Kibe",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Molho salada hellmanns rose 210ml",
+  "unidade": "um",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pó para suco 18g  laranja",
+  "unidade": "und",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Maracujá",
+  "unidade": "kg",
+  "categoria": "Diversos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Milho enlatado - 195 g",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Ervilha enlatada  - 195g",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Azeitona preta 3,2 kg",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Azeitona verde fatiada -2Kg",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Azeitona Fatiada verde - 3,2kg",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Azeitona sem caroço verde - 2kg",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Palmito em conserva  800g",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Farinha de milho 500g",
+  "unidade": "und",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Milho - Bandeja",
+  "unidade": "kg",
+  "categoria": "Enlatados e Conservas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Farinha de mandioca 20 kg",
+  "unidade": "kg",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Farinha de Trigo  5Kg",
+  "unidade": "kg",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Amido de milho 5Kg",
+  "unidade": "kg",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Farinha de Rosca  5kg",
+  "unidade": "kg",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Flocão de milho -  500g",
+  "unidade": "und",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Trigo para quibe 500g",
+  "unidade": "kg",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Fuba de milho 500g",
+  "unidade": "und",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Farinha de Rosca 5Kg",
+  "unidade": "kg",
+  "categoria": "Farináceos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Arroz  5 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Arroz Integral 1 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Feijão Carioca 1 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Feijão preto Cristal 1 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Feijão Branco 1 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Açucar Cristalizado  5 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Sal Grosso  1 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Sal refinado 1 Kg",
+  "unidade": "und",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Kit Feijoada preparado e pronto",
+  "unidade": "kg",
+  "categoria": "Grãos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Extrato de Tomate  2 Kg",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Molho de pimenta - 900mL",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Batata palha -  800g",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Uva passa preta 1kg",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimenta biquinho - 3,02 kg",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Batata palito 1 kg",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Aneis de cebola",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Guariroba",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Uva Thompson 500g",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Mandioca congelada",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Brocolis",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Beringela",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimentao Verde",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Quiabo",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Cenoura",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Abobrinha",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Repolho roxo",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimenta de cheiro",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Chuchu",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Vagem",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimentao amarelo",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimentao vermelho",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Abacaxi",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Batata inglesa",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Tomate",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Manga",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Beterraba",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Batata doce",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Cebola",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Repolho verde",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Banana da terra",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Couve flor",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Alho poró",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Tomate cereja",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Morango",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Jilo",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Abobora Kabutia",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Cebola Roxa",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Alho",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimenta Calabresa",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimenta de bode",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Abobora Moranga",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Tomate seco",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pimenta do reino",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de morango",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de abacaxi com hortelã",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de abacaxi",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de uva",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de abacaxi com hortela",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Banana prata",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Limão taiti",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Maça fuji",
+  "unidade": "kg",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Molho alho 215ml",
+  "unidade": "um",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Alho Frito 1kg",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Gelatina  20g limão",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Gelatina 20g morango",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pó para suco 18g limão",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pó para suco 18g morango",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pó para suco 18g uva",
+  "unidade": "und",
+  "categoria": "Hortifrúti",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Leite Integral 1L",
+  "unidade": "und",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Leite Condensado 395g",
+  "unidade": "und",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Creme de leite 1,030 Kg",
+  "unidade": "und",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Leite de coco - 500mL",
+  "unidade": "und",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Queijo ralado -  760 g",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Queijo Trança",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Queijo Coalho",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Catupiry - sachê 1,80 kg",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Queijo Fresco",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Mussarela barra",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Mussarela fatiada",
+  "unidade": "kg",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Requeijão cremoso 1,8kg",
+  "unidade": "um",
+  "categoria": "Laticínios",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Macarrão ESP 8 - pct 500g",
+  "unidade": "und",
+  "categoria": "Massas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Macarrão FUR. 5 - pct 500g",
+  "unidade": "und",
+  "categoria": "Massas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Macarrão NINHO - pct 500g",
+  "unidade": "und",
+  "categoria": "Massas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Macarrão PARAFUSO - 500g",
+  "unidade": "und",
+  "categoria": "Massas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Massa de lasanha",
+  "unidade": "kg",
+  "categoria": "Massas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Ovos - cartela de 30un",
+  "unidade": "cartela",
+  "categoria": "Ovos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Ovos de codorna",
+  "unidade": "kg",
+  "categoria": "Ovos",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Pão de forma 450 g",
+  "unidade": "pacote",
+  "categoria": "Padaria",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Biscoito Maisena",
+  "unidade": "kg",
+  "categoria": "Padaria",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Costelinha de Caranha",
+  "unidade": "kg",
+  "categoria": "Pescados",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Camarão",
+  "unidade": "kg",
+  "categoria": "Pescados",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Bacalhau",
+  "unidade": "kg",
+  "categoria": "Pescados",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de goiaba",
+  "unidade": "und",
+  "categoria": "Polpas de Frutas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de cajú",
+  "unidade": "und",
+  "categoria": "Polpas de Frutas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de acerola",
+  "unidade": "und",
+  "categoria": "Polpas de Frutas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de cajá",
+  "unidade": "und",
+  "categoria": "Polpas de Frutas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Polpa de maracujá",
+  "unidade": "und",
+  "categoria": "Polpas de Frutas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Chocolate em barra -  1,01 kg",
+  "unidade": "kg",
+  "categoria": "Sobremesas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Coco Ralado  - 200g",
+  "unidade": "kg",
+  "categoria": "Sobremesas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Gelatina sem sabor 24G",
+  "unidade": "um",
+  "categoria": "Sobremesas",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Oleo de Soja - 900mL",
+  "unidade": "und",
+  "categoria": "Óleos e Gorduras",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Oleo  MISTO - 500mL",
+  "unidade": "und",
+  "categoria": "Óleos e Gorduras",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Azeite de Oliva extra virgem- 500mL",
+  "unidade": "und",
+  "categoria": "Óleos e Gorduras",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Azeite de dendê - 900mL",
+  "unidade": "und",
+  "categoria": "Óleos e Gorduras",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Margarina 15Kg",
+  "unidade": "kg",
+  "categoria": "Óleos e Gorduras",
+  "estoqueMinimo": 7
+ },
+ {
+  "nome": "Óleo de Soja - 900mL",
+  "unidade": "und",
+  "categoria": "Óleos e Gorduras",
+  "estoqueMinimo": 7
+ }
+]

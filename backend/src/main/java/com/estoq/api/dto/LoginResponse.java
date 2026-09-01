@@ -1,0 +1,14 @@
+package com.estoq.api.dto;
+
+import com.estoq.business.usuario.Perfil;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
+public class LoginResponse {
+
+	private String token;
+	private String nome;
+	private Perfil perfil;
+}

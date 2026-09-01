@@ -1,0 +1,366 @@
+@startuml
+' ============================================================
+' estoQ — Diagrama de Classes
+' Sistema de Gestão de Estoque e CMV para Cozinha
+' Nível: aluno do 3º período de Análise e Desenvolvimento de Sistemas
+' ============================================================
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 13
+title estoQ — Diagrama de Classes
+
+' ------------------------------------------------------------
+' Pacote: Core (camada genérica/infraestrutura)
+' ------------------------------------------------------------
+package "core (Infraestrutura genérica)" {
+
+    abstract class BaseModel {
+        - id : UUID
+        - dataHoraCriacao : LocalDateTime
+        - ativo : boolean
+        + prePersist() : void
+    }
+
+    abstract class BaseDTO {
+        - id : UUID
+        - active : boolean
+    }
+
+    interface IGenericRepository<E> <<interface>> {
+        + findByIdAndAtivoTrue(id) : Optional<E>
+        + findAllByAtivoTrue(pageable) : Page<E>
+    }
+
+    interface IGenericService<E, R, V> <<interface>> {
+        + findByIdActive(id) : E
+        + findAllActive(pageable) : Page<E>
+        + insert(entity) : E
+        + update(entity) : E
+        + delete(id) : void
+    }
+
+    abstract class GenericService<E, R, V> {
+        # repository : R
+        # validation : V
+        .. ganchos (hook methods) ..
+        # beforeInsert(entity) : void
+        # afterInsert(saved, original) : void
+        # beforeUpdate(entity) : void
+        # afterUpdate(saved, original) : void
+        # beforeDelete(entity) : void
+        # afterDelete(entity) : void
+    }
+
+    abstract class GenericController<E, D, S, M> {
+        # service : S
+        # mapper : M
+        + findById(id) : ResponseEntity
+        + findAll(pageable) : ResponseEntity
+        + insert(dto) : ResponseEntity
+        + update(id, dto) : ResponseEntity
+        + delete(id) : ResponseEntity
+    }
+
+    interface IGenericMapper<E, D> <<interface>> {
+        + toDto(entity) : D
+        + toEntity(dto) : E
+    }
+
+    interface IGenericValidation<E, R> <<interface>> {
+        + validateFields(entity) : void
+    }
+
+    ' relacionamentos do core
+    GenericService ..|> IGenericService
+    GenericService --> IGenericRepository : usa
+    GenericService --> IGenericValidation : usa
+    GenericController --> IGenericService : usa
+    GenericController --> IGenericMapper : usa
+}
+
+' ------------------------------------------------------------
+' Pacote: business (Domínio)
+' ------------------------------------------------------------
+package "business (Domínio)" {
+
+    ' Classes de modelo (entidades do banco)
+    class ProdutoModel {
+        - nome : String
+        - unidade : String
+        - categoria : String
+        - estoqueMinimo : BigDecimal
+    }
+
+    class PeriodoModel {
+        - nome : String
+        - dataInicio : LocalDate
+        - dataFim : LocalDate
+        - vendas : BigDecimal
+        - status : PeriodoStatus
+    }
+
+    class CompraModel {
+        - quantidade : BigDecimal
+        - precoUnitario : BigDecimal
+        - dataCompra : LocalDate
+    }
+
+    class EstoquePeriodoModel {
+        - quantidadeInicial : BigDecimal
+        - valorUnitarioInicial : BigDecimal
+        - quantidadeFinal : BigDecimal
+        - valorUnitarioFinal : BigDecimal
+    }
+
+    class ConsumoDiarioModel {
+        - data : LocalDate
+        - tipo : TipoUso
+        - quantidade : BigDecimal
+        - dataHoraRegistro : LocalDateTime
+    }
+
+    class UsuarioModel {
+        - nome : String
+        - pin : String
+        - perfil : Perfil
+    }
+
+    class SessaoModel {
+        - token : String
+        - usuarioId : UUID
+        - criadoEm : LocalDateTime
+        - expiraEm : LocalDateTime
+    }
+
+    enum PeriodoStatus {
+        ABERTO
+        FECHADO
+    }
+
+    enum EstoqueTipo {
+        INICIAL
+        FINAL
+    }
+
+    enum TipoUso {
+        USADO
+        ABERTO
+    }
+
+    enum Perfil {
+        ADMIN
+        COZINHA
+    }
+
+    ' Interfaces de repositório
+    interface IProdutoRepository <<interface>> {
+        + existsByNome(nome) : boolean
+        + findByNomeIgnoreCase(nome) : Optional<ProdutoModel>
+    }
+    interface IPeriodoRepository <<interface>> {}
+    interface ICompraRepository <<interface>> {}
+    interface IEstoquePeriodoRepository <<interface>> {}
+    interface IConsumoDiarioRepository <<interface>> {}
+    interface IUsuarioRepository <<interface>> {}
+    interface ISessaoRepository <<interface>> {}
+
+    ' Interfaces de serviço
+    interface IProdutoService <<interface>> {}
+    interface IPeriodoService <<interface>> {}
+    interface ICompraService <<interface>> {}
+    interface IEstoquePeriodoService <<interface>> {}
+
+    ' Serviços (regras de negócio)
+    class ProdutoService
+    class PeriodoService
+    class CompraService
+    class EstoquePeriodoService
+    class ConsumoDiarioService
+    class UsuarioService
+    class SessaoService
+    class RelatorioService {
+        + relatorioPeriodo(periodoId) : RelatorioCMVPeriodo
+        + relatorioMensal(ano, mes) : RelatorioCMVMensal
+        + matrizConsumo(ano, mes) : ConsumoMatriz
+        + alertasEstoque() : List<AlertaEstoque>
+        + dashboard(ano, mes) : DashboardDTO
+    }
+
+    ' DTOs de domínio
+    class ProdutoDTO {}
+    class PeriodoDTO {}
+    class CompraDTO {
+        - produtoId : UUID
+        - periodoId : UUID
+    }
+    class EstoquePeriodoDTO {}
+    class ConsumoDiarioDTO {}
+    class UsuarioDTO {}
+
+    ' Mappers
+    class ProdutoMapper {}
+    class PeriodoMapper {}
+    class CompraMapper {}
+    class EstoquePeriodoMapper {}
+
+    class CompraValidacao {}
+    class PeriodoValidacao {}
+    class ProdutoValidacao {}
+    class EstoquePeriodoValidacao {}
+    class UsuarioValidacao {}
+
+    ' ---- Herança das entidades no BaseModel ----
+    ProdutoModel -up-|> BaseModel
+    PeriodoModel -up-|> BaseModel
+    CompraModel -up-|> BaseModel
+    EstoquePeriodoModel -up-|> BaseModel
+    ConsumoDiarioModel -up-|> BaseModel
+    UsuarioModel -up-|> BaseModel
+    SessaoModel -up-|> BaseModel
+
+    ' ---- Herança das DTOs no BaseDTO ----
+    ProdutoDTO -up-|> BaseDTO
+    PeriodoDTO -up-|> BaseDTO
+    CompraDTO -up-|> BaseDTO
+    EstoquePeriodoDTO -up-|> BaseDTO
+    ConsumoDiarioDTO -up-|> BaseDTO
+
+    ' ---- Repositórios especializados herdam do genérico ----
+    IProdutoRepository ..|> IGenericRepository
+    IPeriodoRepository ..|> IGenericRepository
+    ICompraRepository ..|> IGenericRepository
+    IEstoquePeriodoRepository ..|> IGenericRepository
+    IConsumoDiarioRepository ..|> IGenericRepository
+    IUsuarioRepository ..|> IGenericRepository
+    ISessaoRepository ..|> IGenericRepository
+
+    ' ---- Serviços especializados herdam do genérico ----
+    ProdutoService -up-|> GenericService
+    PeriodoService -up-|> GenericService
+    CompraService -up-|> GenericService
+    EstoquePeriodoService -up-|> GenericService
+
+    ConsumoDiarioService -up-|> IConsumoDiarioRepository : usa
+    UsuarioService -up-|> IUsuarioRepository : usa
+    SessaoService -up-|> ISessaoRepository : usa
+
+    ProdutoService ..|> IProdutoService
+    PeriodoService ..|> IPeriodoService
+    CompraService ..|> ICompraService
+    EstoquePeriodoService ..|> IEstoquePeriodoService
+
+    ' ---- Mappers usam o mapper genérico ----
+    ProdutoMapper ..|> IGenericMapper
+    PeriodoMapper ..|> IGenericMapper
+    CompraMapper ..|> IGenericMapper
+    EstoquePeriodoMapper ..|> IGenericMapper
+
+    ' ---- Validações usam a interface genérica ----
+    ProdutoValidacao ..|> IGenericValidation
+    PeriodoValidacao ..|> IGenericValidation
+    CompraValidacao ..|> IGenericValidation
+    EstoquePeriodoValidacao ..|> IGenericValidation
+    UsuarioValidacao ..|> IGenericValidation
+
+    ' ---- Relacionamentos de agregação (cardinalidades) ----
+    PeriodoModel "1" *-- "0..*" CompraModel : possui
+    ProdutoModel "1" *-- "0..*" CompraModel : tem
+    CompraModel *-- PeriodoModel : referência
+    CompraModel *-- ProdutoModel : referência
+
+    PeriodoModel "1" *-- "0..*" EstoquePeriodoModel : possui
+    ProdutoModel "1" *-- "0..*" EstoquePeriodoModel : tem
+
+    ProdutoModel "1" *-- "0..*" ConsumoDiarioModel : registra
+    UsuarioModel "1" *-- "0..*" ConsumoDiarioModel : lança
+
+    ' ---- Atributos/elementos usados pelos enums ----
+    PeriodoModel ..> PeriodoStatus
+    EstoquePeriodoModel ..> EstoqueTipo
+    ConsumoDiarioModel ..> TipoUso
+    UsuarioModel ..> Perfil
+
+    ' ---- Serviços dependem dos repositórios ----
+    RelatorioService --> IProdutoRepository : usa
+    RelatorioService --> IPeriodoRepository : usa
+    RelatorioService --> ICompraRepository : usa
+    RelatorioService --> IEstoquePeriodoRepository : usa
+
+    CompraService ..> ICompraRepository : usa
+    PeriodoService ..> IPeriodoRepository : usa
+    EstoquePeriodoService ..> IEstoquePeriodoRepository : usa
+}
+
+' ------------------------------------------------------------
+' Pacote: api (Controllers REST e DTOs de projeção)
+' ------------------------------------------------------------
+package "api (Controllers REST)" {
+
+    class ProdutoController
+    class PeriodoController
+    class CompraController
+    class EstoqueController
+    class UsuarioController
+    class ConsumoDiarioController
+    class RelatorioController
+    class AuthController
+    class IntegracaoController
+
+    ' Herança dos controllers CRUD no genérico
+    ProdutoController -up-|> GenericController
+    PeriodoController -up-|> GenericController
+    CompraController -up-|> GenericController
+    EstoqueController -up-|> GenericController
+
+    ' Usam os serviços de negócio
+    ProdutoController --> ProdutoService : usa
+    PeriodoController --> PeriodoService : usa
+    CompraController --> CompraService : usa
+    EstoqueController --> EstoquePeriodoService : usa
+    ConsumoDiarioController --> ConsumoDiarioService : usa
+    RelatorioController --> RelatorioService : usa
+    AuthController --> UsuarioService : usa
+    AuthController --> SessaoService : usa
+    IntegracaoController --> RelatorioService : usa
+}
+
+' ------------------------------------------------------------
+' Pacote: integracao (importação/exportação de planilha)
+' ------------------------------------------------------------
+package "integracao (Planilha / OCR / CSV)" {
+
+    class ImportadorPlanilhaService {
+        + importar(arquivo) : ResultadoImportacao
+    }
+
+    class ExportadorCsvService {
+        + relatorioCmvPeriodo(rel) : String
+        + relatorioCmvMensal(rel) : String
+    }
+
+    class LeitorReciboService {
+        + importar(arquivo) : LeitorReciboResultado
+    }
+
+    class ParserReciboService {}
+    class GravadorReciboService {}
+    class OcrProperties {}
+
+    IntegracaoController ..> ImportadorPlanilhaService : usa
+    IntegracaoController ..> ExportadorCsvService : usa
+    IntegracaoController ..> LeitorReciboService : usa
+}
+
+' ------------------------------------------------------------
+' Legenda
+' ------------------------------------------------------------
+legend right
+  | Símbolo | Significado |
+  |---|---|
+  | <--\|> | Herança (é um) |
+  | ..\|> | Implementação de interface |
+  | *-- | Agregação (tem) |
+  | -->  | Dependência / uso |
+endlegend
+
+@enduml

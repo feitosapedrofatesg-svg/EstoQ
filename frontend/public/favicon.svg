@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="pan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo grafite em formato de panela/round -->
+  <rect width="64" height="64" rx="15" fill="#1e293b"/>
+
+  <!-- Corpo da panela (círculo do Q) -->
+  <circle cx="30" cy="38" r="19" fill="url(#pan)"/>
+
+  <!-- Tampa da panela -->
+  <rect x="17" y="18" width="26" height="6" rx="3" fill="#f97316"/>
+  <rect x="20" y="10" width="20" height="9" rx="4.5" fill="#f97316"/>
+  <!-- Puxador da tampa (preto) -->
+  <rect x="27" y="6" width="10" height="6" rx="3" fill="#1e293b"/>
+
+  <!-- Alças laterais (pretas) -->
+  <rect x="8" y="32" width="7" height="5" rx="2.5" fill="#1e293b"/>
+  <rect x="45" y="32" width="7" height="5" rx="2.5" fill="#1e293b"/>
+
+  <!-- Cauda do Q (cabo de frigideira/espátula preta inclinada) -->
+  <path d="M46 46 L60 60 L62 57 L49 44 Z" fill="#1e293b"/>
+  <circle cx="61" cy="60" r="2.6" fill="#1e293b"/>
+</svg>
