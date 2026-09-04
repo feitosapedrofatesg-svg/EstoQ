@@ -1,4 +1,4 @@
-import type { Perfil } from "./types";
+import type { Page, Perfil, Produto } from "./types";
 
 export class ApiError extends Error {
   status: number;
@@ -89,4 +89,59 @@ export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const [y, m, d] = iso.split("T")[0].split("-");
   return `${d}/${m}/${y}`;
+}
+
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const [dia, hora] = iso.split("T");
+  const [y, m, d] = dia.split("-");
+  return `${d}/${m}/${y} ${hora ? hora.slice(0, 5) : ""}`.trim();
+}
+
+export function hojeIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function inicioMesIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+/** Obtém todas as páginas de produtos ativos, ordenados por nome. */
+export async function carregarProdutos(): Promise<Produto[]> {
+  const primeira = await api.get<Page<Produto>>("/api/produtos?page=0&size=500");
+  let lista = [...primeira.content];
+  for (let p = 1; p < primeira.totalPages; p++) {
+    const mais = await api.get<Page<Produto>>(`/api/produtos?page=${p}&size=500`);
+    lista = lista.concat(mais.content);
+  }
+  return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/** Download de arquivo (ex.: CSV) autenticado, disparando o salvamento no navegador. */
+export async function download(url: string, nome: string) {
+  const auth = getAuth();
+  const headers: Record<string, string> = {};
+  if (auth) headers["Authorization"] = `Bearer ${auth.token}`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    let message = `Erro ${res.status} ao baixar o arquivo.`;
+    try {
+      const data = await res.json();
+      message = data?.message || message;
+    } catch {
+      // corpo não é JSON — mantém a mensagem padrão
+    }
+    throw new ApiError(res.status, message);
+  }
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
 }

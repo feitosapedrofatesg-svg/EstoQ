@@ -1,28 +1,46 @@
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { motion } from "motion/react";
 import { RequireAuth, useAuth } from "./auth";
 import Produtos from "./pages/Produtos";
-import Periodos from "./pages/Periodos";
-import Compras from "./pages/Compras";
-import Estoque from "./pages/Estoque";
 import Relatorios from "./pages/Relatorios";
-import Importar from "./pages/Importar";
-import UsoDiario from "./pages/UsoDiario";
+import Movimentacoes from "./pages/Movimentacoes";
+import Desperdicio from "./pages/Desperdicio";
+import Lotes from "./pages/Lotes";
+import Conferencia from "./pages/Conferencia";
 import Usuarios from "./pages/Usuarios";
 import Login from "./pages/Login";
 
 const navAdmin = [
   { to: "/relatorios", label: "Relatórios", ico: "📈" },
-  { to: "/uso-diario", label: "Uso diário", ico: "📝" },
-  { to: "/produtos", label: "Produtos", ico: "📦" },
-  { to: "/periodos", label: "Períodos", ico: "🗓️" },
-  { to: "/compras", label: "Compras", ico: "🛒" },
-  { to: "/estoque", label: "Estoque", ico: "🏬" },
-  { to: "/importar", label: "Importar planilha", ico: "🔄" },
+  { to: "/movimentacoes", label: "Movimentações", ico: "📝" },
+  { to: "/desperdicio", label: "Desperdício", ico: "✂️" },
+  { to: "/lotes", label: "Estoque", ico: "📦" },
+  { to: "/produtos", label: "Produtos", ico: "🏷️" },
+  { to: "/conferencia", label: "Conferência", ico: "🔍" },
   { to: "/usuarios", label: "Usuários", ico: "👤" },
 ];
 
+const navCozinha = [
+  { to: "/movimentacoes", label: "Movimentações", ico: "📝" },
+  { to: "/lotes", label: "Estoque", ico: "📦" },
+  { to: "/desperdicio", label: "Desperdício", ico: "✂️" },
+];
+
+const navNutricionista = [
+  { to: "/relatorios", label: "Relatórios", ico: "📈" },
+  { to: "/produtos", label: "Produtos", ico: "🏷️" },
+  { to: "/lotes", label: "Estoque", ico: "📦" },
+];
+
+const perfilLabel: Record<string, string> = {
+  ADMIN: "Administrador",
+  COZINHA: "Cozinha",
+  NUTRICIONISTA: "Nutricionista",
+};
+
 export default function App() {
   const { auth, logout } = useAuth();
+  const location = useLocation();
 
   if (!auth) {
     return (
@@ -33,7 +51,10 @@ export default function App() {
     );
   }
 
-  const nav = auth.perfil === "COZINHA" ? navAdmin.filter((n) => n.to === "/uso-diario") : navAdmin;
+  const ehCozinha = auth.perfil === "COZINHA";
+  const ehNutricionista = auth.perfil === "NUTRICIONISTA";
+  const home = ehCozinha ? "/movimentacoes" : "/relatorios";
+  const nav = ehCozinha ? navCozinha : ehNutricionista ? navNutricionista : navAdmin;
 
   return (
     <div className="app">
@@ -51,7 +72,7 @@ export default function App() {
         </nav>
         <div className="side-foot">
           <div className="small" style={{ marginBottom: 8 }}>
-            <strong>{auth.nome}</strong> · {auth.perfil === "ADMIN" ? "Administrador" : "Cozinha"}
+            <strong>{auth.nome}</strong> · {perfilLabel[auth.perfil] || auth.perfil}
           </div>
           <button className="btn small" onClick={() => logout()} style={{ width: "100%" }}>
             Sair
@@ -59,18 +80,24 @@ export default function App() {
         </div>
       </aside>
       <main className="main">
-        <Routes>
-          <Route path="/" element={<Navigate to="/relatorios" replace />} />
-          <Route path="/uso-diario" element={<RequireAuth><UsoDiario /></RequireAuth>} />
-          <Route path="/relatorios" element={<RequireAuth adminOnly><Relatorios /></RequireAuth>} />
-          <Route path="/produtos" element={<RequireAuth adminOnly><Produtos /></RequireAuth>} />
-          <Route path="/periodos" element={<RequireAuth adminOnly><Periodos /></RequireAuth>} />
-          <Route path="/compras" element={<RequireAuth adminOnly><Compras /></RequireAuth>} />
-          <Route path="/estoque" element={<RequireAuth adminOnly><Estoque /></RequireAuth>} />
-          <Route path="/importar" element={<RequireAuth adminOnly><Importar /></RequireAuth>} />
-          <Route path="/usuarios" element={<RequireAuth adminOnly><Usuarios /></RequireAuth>} />
-          <Route path="*" element={<Navigate to="/relatorios" replace />} />
-        </Routes>
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: "easeOut" }}
+        >
+          <Routes location={location}>
+            <Route path="/" element={<Navigate to={home} replace />} />
+            <Route path="/movimentacoes" element={<RequireAuth><Movimentacoes /></RequireAuth>} />
+            <Route path="/produtos" element={<RequireAuth><Produtos /></RequireAuth>} />
+            <Route path="/lotes" element={<RequireAuth><Lotes /></RequireAuth>} />
+            <Route path="/relatorios" element={<RequireAuth adminOnly><Relatorios /></RequireAuth>} />
+            <Route path="/desperdicio" element={<RequireAuth><Desperdicio /></RequireAuth>} />
+            <Route path="/conferencia" element={<RequireAuth adminOnly><Conferencia /></RequireAuth>} />
+            <Route path="/usuarios" element={<RequireAuth adminOnly><Usuarios /></RequireAuth>} />
+            <Route path="*" element={<Navigate to={home} replace />} />
+          </Routes>
+        </motion.div>
       </main>
     </div>
   );

@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { api } from "../api";
 import { Modal, useAsyncData } from "../components";
-import type { Usuario } from "../types";
+import type { Perfil, Usuario } from "../types";
+
+const perfilInfo: Record<Perfil, { label: string; cls: string }> = {
+  ADMIN: { label: "Administrador", cls: "info" },
+  COZINHA: { label: "Cozinha", cls: "warn" },
+  NUTRICIONISTA: { label: "Nutricionista", cls: "neutral" },
+};
 
 export default function Usuarios() {
   const { data, error, loading, reload } = useAsyncData<Usuario[]>(() => api.get("/api/usuarios"), []);
@@ -56,19 +62,23 @@ export default function Usuarios() {
             </tr>
           </thead>
           <tbody>
-            {(data || []).map((u) => (
-              <tr key={u.id}>
-                <td><strong>{u.nome}</strong></td>
-                <td>
-                  <span className={`badge ${u.perfil === "ADMIN" ? "info" : "warn"}`}>
-                    {u.perfil === "ADMIN" ? "Administrador" : "Cozinha"}
-                  </span>
-                </td>
-                <td>
-                  <button className="btn small" onClick={() => abrir(u)}>Redefinir PIN</button>
-                </td>
-              </tr>
-            ))}
+            {(data || []).map((u) => {
+              const info = perfilInfo[u.perfil] || { label: u.perfil, cls: "neutral" };
+              return (
+                <tr key={u.id}>
+                  <td><strong>{u.nome}</strong></td>
+                  <td>
+                    <span className={`badge ${info.cls}`}>{info.label}</span>
+                  </td>
+                  <td>
+                    <button className="btn small" onClick={() => abrir(u)}>Redefinir PIN</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {(data || []).length === 0 && (
+              <tr><td colSpan={3} className="empty">Nenhum usuário encontrado.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

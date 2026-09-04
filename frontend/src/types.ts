@@ -1,163 +1,204 @@
 export interface Produto {
   id: string;
-  active: boolean;
+  ativo: boolean;
   nome: string;
-  unidade: string;
-  categoria: string;
+  unidadeMedida: string;
+  categoriaId: string | null;
+  categoriaNome: string | null;
   estoqueMinimo: number;
+  saldoAtual: number;
 }
 
-export interface Periodo {
+export interface Categoria {
   id: string;
-  active: boolean;
-  nome: string;
-  dataInicio: string;
-  dataFim: string;
-  vendas: number | null;
-  status: "ABERTO" | "FECHADO";
+  ativo: boolean;
+  nome: string | null;
+  descricao: string | null;
 }
 
-export interface Compra {
+export interface LoteView {
+  id: string;
+  codigo: string;
+  produtoId: string;
+  produtoNome: string;
+  unidadeMedida: string;
+  quantidadeInicial: number;
+  quantidadeAtual: number;
+  dataEntrada: string;
+  dataValidade: string | null;
+  precoUnitario: number | null;
+  vencido: boolean;
+  disponivel: boolean;
+  diasParaVencimento: number;
+}
+
+export interface ProdutoAbertoView {
   id: string;
   produtoId: string;
-  periodoId: string;
+  produtoNome: string;
+  unidadeMedida: string;
+  dataAbertura: string;
+  quantidadeAberta: number;
+  quantidadeUtilizada: number;
+  quantidadeRestante: number;
+  finalizado: boolean;
+}
+
+export type TipoMovimentacao = "ENTRADA" | "CONSUMO" | "DESPERDICIO" | "AJUSTE";
+
+export interface MovimentacaoView {
+  id: string;
+  tipo: TipoMovimentacao;
+  dataHora: string;
+  produtoId: string;
+  produtoNome: string;
+  unidadeMedida: string;
   quantidade: number;
-  precoUnitario: number;
-  dataCompra: string;
+  quantidadeAnterior: number | null;
+  quantidadePosterior: number | null;
+  observacao: string | null;
+  usuarioNome: string | null;
+  loteId: string | null;
+  loteCodigo: string | null;
+  motivo: string | null;
+  valorPrejuizo: number | null;
+  custoConsumo: number | null;
+  diferencaApurada: number | null;
 }
 
-export interface CompraView extends Compra {
-  produtoNome: string;
-  unidade: string;
-  periodoNome: string;
-  total: number;
-}
-
-export interface EstoquePeriodo {
+export interface AlertaView {
   id: string;
-  periodoId: string;
-  produtoId: string;
-  quantidadeInicial: number;
-  valorUnitarioInicial: number | null;
-  quantidadeFinal: number;
-  valorUnitarioFinal: number | null;
+  tipo: string;
+  mensagem: string;
+  dataGeracao: string;
+  perfilDestino: string;
+  visualizado: boolean;
+  produtoNome: string | null;
+  loteCodigo: string | null;
 }
 
-export interface EstoqueView {
+export interface ParametroEstoqueView {
   id: string;
-  periodoId: string;
-  periodoNome: string;
   produtoId: string;
   produtoNome: string;
-  unidade: string;
-  quantidadeInicial: number;
-  valorUnitarioInicial: number | null;
-  valorInicial: number;
-  quantidadeFinal: number;
-  valorUnitarioFinal: number | null;
-  valorFinal: number;
+  unidadeMedida: string;
+  estoqueMinimo: number;
+  estoqueMedio: number;
+  estoqueMaximo: number;
+  consumoMedioDiario: number;
+  tempoReposicaoDias: number | null;
+  periodoAnaliseDias: number | null;
+  dataAtualizacao: string | null;
+  saldoAtual: number;
 }
 
-export interface ItemRelatorioCMV {
+export interface ConfiguracaoBalancoView {
+  id: string | null;
+  periodicidade: string;
+  diaExecucao: number;
+  proximaExecucao: string | null;
+  balancosEmAndamento: number;
+  pendente: boolean;
+}
+
+export interface ItemBalancoView {
+  id: string;
+  balancoId: string;
   produtoId: string;
   produtoNome: string;
-  unidade: string;
-  categoria: string;
+  unidadeMedida: string;
+  quantidadeSistema: number;
+  quantidadeFisica: number;
+  diferenca: number;
+}
+
+export type StatusBalanco = "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDO" | "CANCELADO";
+
+export interface BalancoView {
+  id: string;
+  dataHora: string;
+  tipo: string;
+  status: StatusBalanco;
+  responsavelNome: string | null;
+  itens: ItemBalancoView[];
+  qtdItens: number;
+  totalDiferenca: number;
+}
+
+export interface CMVItemDTO {
+  produtoId: string;
+  produtoNome: string;
+  categoriaNome: string | null;
+  unidadeMedida: string | null;
   estoqueInicialQtd: number;
   estoqueInicialValor: number;
-  comprasQtd: number;
-  comprasValorUnitarioMedio: number;
-  comprasValor: number;
+  entradasQtd: number;
+  entradasValor: number;
   estoqueFinalQtd: number;
-  estoqueFinalValorUnitario: number;
   estoqueFinalValor: number;
   consumoQtd: number;
   consumoValor: number;
+  desperdicioQtd: number;
+  desperdicioValor: number;
+  totalValor: number;
 }
 
-export interface RelatorioCMVPeriodo {
-  periodoId: string;
-  periodoNome: string;
+export interface CMVReportDTO {
   dataInicio: string;
   dataFim: string;
-  vendas: number;
+  vendas: number | null;
   metaCmv: number;
-  totalEstoqueInicial: number;
-  totalCompras: number;
-  totalEstoqueFinal: number;
   totalConsumo: number;
-  cmv: number;
-  itens: ItemRelatorioCMV[];
+  totalDesperdicio: number;
+  totalGeral: number;
+  cmv: number | null;
+  itens: CMVItemDTO[];
 }
 
-export interface RelatorioCMVMensal {
+export interface DashboardDTO {
   ano: number;
   mes: number;
-  vendas: number;
-  totalEstoqueInicial: number;
-  totalCompras: number;
-  totalEstoqueFinal: number;
-  totalConsumo: number;
-  cmv: number;
-  periodos: RelatorioCMVPeriodo[];
-}
-
-export interface AlertaEstoque {
-  produtoId: string;
-  produtoNome: string;
-  unidade: string;
-  categoria: string;
-  estoqueAtual: number;
-  estoqueMinimo: number;
-  consumoMedioSemanal: number;
-  status: "REPOR" | "ATENCAO" | "OK" | "SEM_DADOS";
-}
-
-export interface Dashboard {
-  cmvDoMes: number;
-  cmvMeta: number;
-  consumoDoMes: number;
-  vendasDoMes: number;
+  metaCmv: number;
+  cmvMes: number;
+  consumoMes: number;
+  desperdicioMes: number;
   totalProdutos: number;
   produtosComEstoqueBaixo: number;
-  periodosAbertos: number;
-  comprasNoMes: number;
-  principaisAlertas: AlertaEstoque[];
+  lotesVencendo: number;
+  lotesVencidos: number;
+  balancoPendente: boolean;
+  alertasPendentes: number;
+  principaisAlertas: AlertaView[];
 }
 
-export interface ConsumoMatriz {
-  periodos: { periodoId: string; periodoNome: string; dataInicio: string; dataFim: string }[];
-  itens: {
-    produtoId: string;
-    produtoNome: string;
-    unidade: string;
-    categoria: string;
-    consumoPorPeriodo: (number | null)[];
-    consumoTotal: number;
-    estoqueMinimo: number;
-  }[];
-  consumoTotal: number;
+export interface RelatorioLinhaDTO {
+  chave: string;
+  detalhe: string;
+  unidadeMedida: string | null;
+  quantidade: number | null;
+  valor: number | null;
+  data: string | null;
+  status: string;
 }
 
-export interface ResultadoImportacao {
-  periodos: number;
-  compras: number;
-  estoques: number;
-  produtosCriados: number;
-  produtosAtualizados: number;
-  mensagem: string;
+export interface RelatorioViewDTO {
+  id: string;
+  tipo: string;
+  dataInicio: string | null;
+  dataFim: string | null;
+  dataGeracao: string;
+  linhasGeradas: number;
+  linhas: RelatorioLinhaDTO[];
 }
 
-export interface ItemRecibo {
-  descricao: string;
-  quantidade: number;
-  precoUnitario: number;
-}
-
-export interface LeitorReciboResultado extends ResultadoImportacao {
-  dataCompra: string | null;
-  totalItens: number;
-  itens: ItemRecibo[];
+export interface RelatorioHistorico {
+  id: string;
+  tipo: string;
+  dataInicio: string | null;
+  dataFim: string | null;
+  dataGeracao: string;
+  linhasGeradas: number;
+  ativo: boolean;
 }
 
 export interface Page<T> {
@@ -168,7 +209,7 @@ export interface Page<T> {
   number: number;
 }
 
-export type Perfil = "ADMIN" | "COZINHA";
+export type Perfil = "ADMIN" | "COZINHA" | "NUTRICIONISTA";
 
 export interface Usuario {
   id: string;
@@ -183,17 +224,13 @@ export interface LoginResponse {
   perfil: Perfil;
 }
 
-export type TipoUso = "USADO" | "ABERTO";
+export type MotivoDesperdicio =
+  | "VENCIMENTO"
+  | "DETERIORACAO"
+  | "PREPARO_INCORRETO"
+  | "SOBRA_NAO_APROVEITADA"
+  | "OUTRO";
 
-export interface ConsumoDiario {
-  id: string;
-  data: string;
-  produtoId: string;
-  produtoNome: string;
-  unidade: string;
-  tipo: TipoUso;
-  quantidade: number;
-  usuarioId: string;
-  usuarioNome: string;
-  dataHoraRegistro: string;
-}
+export type PeriodicidadeBalanco = "DIARIA" | "SEMANAL" | "MENSAL";
+
+export type TipoRelatorio = "ESTOQUE_ATUAL" | "PROXIMO_VENCIMENTO" | "VENCIDOS" | "PRODUTOS_ABERTOS" | "DESPERDICIO" | "CONSUMO_MEDIO";

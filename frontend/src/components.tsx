@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
 
 export function Modal({
   title,
@@ -11,13 +12,24 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const reduce = useReducedMotion();
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal${wide ? " wide" : ""}`}>
+    <motion.div
+      className="modal-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        className={`modal${wide ? " wide" : ""}`}
+        initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 12 }}
+        animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+      >
         <h3>{title}</h3>
         {children}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -29,6 +41,18 @@ export function Badge({ status }: { status: string }) {
     ATENCAO: { cls: "warn", label: "Atenção" },
     REPOR: { cls: "danger", label: "Repor" },
     SEM_DADOS: { cls: "neutral", label: "Sem dados" },
+    SEM_ESTOQUE: { cls: "danger", label: "Sem estoque" },
+    PENDENTE: { cls: "warn", label: "Pendente" },
+    EM_ANDAMENTO: { cls: "info", label: "Em andamento" },
+    CONCLUIDO: { cls: "ok", label: "Concluído" },
+    CANCELADO: { cls: "neutral", label: "Cancelado" },
+    ENTRADA: { cls: "ok", label: "Entrada" },
+    CONSUMO: { cls: "warn", label: "Consumo" },
+    DESPERDICIO: { cls: "danger", label: "Desperdício" },
+    AJUSTE: { cls: "info", label: "Ajuste" },
+    SOBRA: { cls: "ok", label: "Sobra" },
+    VENCIDO: { cls: "danger", label: "Vencido" },
+    ABERTO_EMB: { cls: "info", label: "Aberto" },
   };
   const m = map[status] || { cls: "neutral", label: status };
   return <span className={`badge ${m.cls}`}>{m.label}</span>;
