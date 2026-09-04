@@ -1,13 +1,13 @@
 # estoQ — Gestão de Estoque e CMV para Cozinha
 
 Sistema para substituir a planilha "Planilha de cálculo de CMV Real
-DEZEMBRO 22.xls": cadastro de produtos, períodos, compras, estoque semanal,
-relatório de **CMV** (semanal e mensal), matriz de consumo, alertas de
-reposição e importação da planilha legada.
+DEZEMBRO 22.xls": cadastro de produtos e categorias, controle de estoque por
+**lotes e movimentações** (entrada, consumo, desperdício, ajuste), conferência
+física (balanço), alertas e relatório de **CMV**.
 
 ## Stack
 
-- **Backend**: Java 21 · Spring Boot 4 · PostgreSQL · Apache POI — porta **8081**
+- **Backend**: Java 21 · Spring Boot 4 · PostgreSQL (dev) / H2 (prod)
 - **Frontend**: React 18 · Vite · TypeScript — porta **5173**
 - **Banco**: PostgreSQL 16 via Docker (`docker-compose.yml`)
 
@@ -17,7 +17,7 @@ reposição e importação da planilha legada.
 docker compose up -d postgres
 
 cd backend
-mvn spring-boot:run
+mvn spring-boot:run        # dev na porta 8082
 
 cd frontend
 npm install
@@ -33,23 +33,25 @@ O sistema pode ser empacotado em **um único arquivo autossuficiente**
 PostgreSQL ou Node no ambiente final. Basta **Java 21** no PC (ex.: PC do caixa).
 
 - `./scripts/build-release.sh` — gera o pacote em [`distribuicao/`](distribuicao/)
-- [`distribuicao/README-entregavel.md`](distribuicao/README-entregavel.md) — manual de instalação
 - O jar roda com o perfil Spring `prod` (`--spring.profiles.active=prod`); o perfil
   padrão (`dev`) continua no PostgreSQL/Docker.
 - Frontend vira **PWA**: o tablet instala um ícone e roda em tela cheia.
 
-Login por PIN: **Admin** `000000` (tudo) · **Cozinha** `111111` (uso diário).
+Login por PIN: **Admin** `000000` (tudo) · **Cozinha** `111111` (movimentações).
 
 ## Funcionalidades
 
-- Catálogo de produtos (196 itens iniciais) com estoque mínimo semanal.
-- Períodos de apuração (semanas) com vendas e trava de fechamento.
-- Lançamento de compras por período.
-- Estoque inicial/final por período, com herança automática entre períodos.
-- Relatório de CMV (semanal e mensal) e matriz de consumo.
-- Alertas de reposição (`REPOR`, `ATENCAO`, `OK`).
-- Importação da planilha legada (.xls/.xlsx) e exportação em CSV.
-- Login por PIN com dois perfis (Admin e Cozinha) e tela de Uso Diário no tablet.
+- Catálogo de produtos (196 itens iniciais) com categorias e unidade de medida.
+- Entradas geram **lotes** (com validade e preço unitário).
+- Consumo com prioridade para embalagens abertas e depois **FIFO** por validade;
+  sobras devolvidas ao estoque.
+- Desperdício com motivo (vencimento, deterioração, preparo, sobra) e valor de prejuízo.
+- **Conferência física**: balanço periódico, contagem e ajustes automáticos.
+- Parâmetros de estoque por produto (mínimo, consumo médio, tempo de reposição).
+- Alertas: estoque baixo, vencimento/vencidos, balanço pendente, diferenças.
+- Relatório de **CMV** (consumo + desperdício ÷ vendas), relatórios por tipo e
+  importação/exportação em CSV.
+- Login por PIN com perfis `ADMIN`, `COZINHA` e `NUTRICIONISTA`.
 
 ## Documentação
 
@@ -59,23 +61,36 @@ Detalhes em [`documentacao/`](documentacao/):
 - [Modelo de dados](documentacao/modelo-de-dados.md)
 - [API REST](documentacao/api.md)
 - [Manual de uso](documentacao/manual-de-uso.md)
+- [Diagrama de classes (PlantUML)](documentacao/diagrama-de-classes.puml)
 
 ## Estrutura
 
 ```
 backend/src/main/java/com/estoq/
-├── core/          # infraestrutura genérica (CRUD, exceções, helpers)
-├── conf/          # configurações (CORS, OpenAPI, seed)
-├── business/      # domínios (produto, periodo, compra, estoque, relatorio)
-├── api/           # controllers REST e DTOs de projeção
-└── integracao/    # importação de planilha e exportação CSV
-frontend/          # SPA React (Vite)
-documentacao/      # arquitetura, modelo, API, manual
+├── core/
+│   ├── conf/        # configurações (cors, web, security, docs, seed)
+│   ├── controllers/ # GenericController (CRUD REST genérico)
+│   ├── domains/     # BaseModel
+│   ├── dtos/        # BaseDTO
+│   ├── exceptions/  # BusinessException + handler global
+│   ├── helpers/     # IGenericAdapter, NumeroUtil
+│   ├── repositories/# IGenericRepository
+│   ├── services/    # GenericService + IGenericService
+│   └── validations/ # GenericValidation + IGenericValidation
+├── business/        # módulos auto-contidos (produto, lote, movimentacao,
+│                    # balanco, relatorio, categoria, usuario, sessao...)
+└── EstoqApplication.java
+frontend/            # SPA React (Vite)
+documentacao/        # arquitetura, modelo, API, manual
 ```
+
+> Cada domínio de `business/` reúne `Model`, `DTO`/`View`/`Request`, `Adapter`,
+> `Validation`, `IValidation`, `Service`, `Repository` e `Controller` (padrão
+> PIAds3 do curso de ADS). Não há camada `api/` separada.
 
 ## Nota
 
-As **vendas** de cada período são informadas manualmente (não são lidas da
-planilha). O CMV calculado pode diferir levemente da planilha antiga porque
-o sistema precifica o estoque final pela última compra do período — ver o
+As **vendas** informadas na consulta de CMV são valores manuais (não vêm da
+planilha). O CMV é derivado dos custos reais das movimentações (preço do lote
+de origem no consumo e custo médio no desperdício) — ver o
 [manual](documentacao/manual-de-uso.md).

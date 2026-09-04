@@ -1,5 +1,5 @@
 @echo off
-rem estoQ — copia de seguranca do banco (Windows).
+rem estoQ - copia de seguranca do banco (Windows)
 rem Recomendado: rodar TODO DIA ao encerrar o expediente.
 rem Ideal: feche a janela do estoQ (Ctrl+C) antes de executar.
 cd /d "%~dp0"
@@ -13,5 +13,5 @@ for /f "tokens=1-3 delims=/ " %%a in ("%date%") do set DIA=%%c%%b%%a
 for /f "tokens=1-2 delims=: " %%a in ("%time%") do set HOR=%%a%%b
 copy /y "dados\estoq.mv.db" "backups\estoq-%DIA%-%HOR%.mv.db"
 echo.
-echo Backup salvo na pasta backups. Backup diario evitar perder dados.
+echo Backup salvo na pasta backups. Backup diario evita perder dados.
 pause

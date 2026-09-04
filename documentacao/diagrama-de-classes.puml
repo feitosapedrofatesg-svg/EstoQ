@@ -1,16 +1,16 @@
 @startuml
 ' ============================================================
 ' estoQ — Diagrama de Classes
-' Sistema de Gestão de Estoque e CMV para Cozinha
+' Sistema de Gestão de Estoque e CMV para Cozinha (modelo idealizado)
 ' Nível: aluno do 3º período de Análise e Desenvolvimento de Sistemas
 ' ============================================================
 
 skinparam classAttributeIconSize 0
 skinparam classFontSize 13
-title estoQ — Diagrama de Classes
+title estoQ — Diagrama de Classes (controle de estoque por lotes e movimentações)
 
 ' ------------------------------------------------------------
-' Pacote: Core (camada genérica/infraestrutura)
+' Pacote: core (camada genérica/infraestrutura)
 ' ------------------------------------------------------------
 package "core (Infraestrutura genérica)" {
 
@@ -23,7 +23,8 @@ package "core (Infraestrutura genérica)" {
 
     abstract class BaseDTO {
         - id : UUID
-        - active : boolean
+        - ativo : boolean
+        - dataHoraCriacao : LocalDateTime
     }
 
     interface IGenericRepository<E> <<interface>> {
@@ -44,16 +45,13 @@ package "core (Infraestrutura genérica)" {
         # validation : V
         .. ganchos (hook methods) ..
         # beforeInsert(entity) : void
-        # afterInsert(saved, original) : void
         # beforeUpdate(entity) : void
-        # afterUpdate(saved, original) : void
         # beforeDelete(entity) : void
-        # afterDelete(entity) : void
     }
 
-    abstract class GenericController<E, D, S, M> {
+    abstract class GenericController<E, D, S, A> {
         # service : S
-        # mapper : M
+        # adapter : A
         + findById(id) : ResponseEntity
         + findAll(pageable) : ResponseEntity
         + insert(dto) : ResponseEntity
@@ -61,7 +59,7 @@ package "core (Infraestrutura genérica)" {
         + delete(id) : ResponseEntity
     }
 
-    interface IGenericMapper<E, D> <<interface>> {
+    interface IGenericAdapter<E, D> <<interface>> {
         + toDto(entity) : D
         + toEntity(dto) : E
     }
@@ -75,7 +73,7 @@ package "core (Infraestrutura genérica)" {
     GenericService --> IGenericRepository : usa
     GenericService --> IGenericValidation : usa
     GenericController --> IGenericService : usa
-    GenericController --> IGenericMapper : usa
+    GenericController --> IGenericAdapter : usa
 }
 
 ' ------------------------------------------------------------
@@ -83,42 +81,7 @@ package "core (Infraestrutura genérica)" {
 ' ------------------------------------------------------------
 package "business (Domínio)" {
 
-    ' Classes de modelo (entidades do banco)
-    class ProdutoModel {
-        - nome : String
-        - unidade : String
-        - categoria : String
-        - estoqueMinimo : BigDecimal
-    }
-
-    class PeriodoModel {
-        - nome : String
-        - dataInicio : LocalDate
-        - dataFim : LocalDate
-        - vendas : BigDecimal
-        - status : PeriodoStatus
-    }
-
-    class CompraModel {
-        - quantidade : BigDecimal
-        - precoUnitario : BigDecimal
-        - dataCompra : LocalDate
-    }
-
-    class EstoquePeriodoModel {
-        - quantidadeInicial : BigDecimal
-        - valorUnitarioInicial : BigDecimal
-        - quantidadeFinal : BigDecimal
-        - valorUnitarioFinal : BigDecimal
-    }
-
-    class ConsumoDiarioModel {
-        - data : LocalDate
-        - tipo : TipoUso
-        - quantidade : BigDecimal
-        - dataHoraRegistro : LocalDateTime
-    }
-
+    ' --------- Bloco: Acesso ---------
     class UsuarioModel {
         - nome : String
         - pin : String
@@ -132,163 +95,344 @@ package "business (Domínio)" {
         - expiraEm : LocalDateTime
     }
 
-    enum PeriodoStatus {
-        ABERTO
-        FECHADO
-    }
-
-    enum EstoqueTipo {
-        INICIAL
-        FINAL
-    }
-
-    enum TipoUso {
-        USADO
-        ABERTO
-    }
-
     enum Perfil {
         ADMIN
         COZINHA
+        NUTRICIONISTA
+    }
+
+    ' --------- Bloco: Cadastros ---------
+    class CategoriaModel {
+        - nome : String
+        - descricao : String
+    }
+
+    class ProdutoModel {
+        - nome : String
+        - unidadeMedida : UnidadeMedida
+        <<transient>> saldoAtual : BigDecimal
+        <<transient>> estoqueMinimo : BigDecimal
+        + estaAbaixoDoMinimo(minimo) : boolean
+    }
+
+    enum UnidadeMedida {
+        KG
+        G
+        L
+        ML
+        UN
+        PCT
+        CARTELA
+        CX
+    }
+
+    ' --------- Bloco: Movimentações ---------
+    abstract class MovimentacaoEstoqueModel {
+        - dataHora : LocalDateTime
+        - quantidadeAnterior : BigDecimal
+        - quantidadePosterior : BigDecimal
+        - observacao : String
+        + {abstract} getTipo() : TipoMovimentacao
+    }
+
+    class EntradaModel {
+        - valorTotalPago : BigDecimal
+        - unidadeCompra : UnidadeMedida
+        - dataValidade : LocalDate
+        - precoUnitario : BigDecimal
+        + gerarLote(produto, data) : LoteModel
+        + calcularPrecoUnitario() : BigDecimal
+    }
+
+    class ConsumoModel {
+        - custoConsumo : BigDecimal
+    }
+
+    class DesperdicioModel {
+        - motivo : MotivoDesperdicio
+        - descricaoMotivo : String
+        + getValorPrejuizo() : BigDecimal
+    }
+
+    class AjusteModel {
+        - diferencaApurada : BigDecimal
+        - justificativa : String
+    }
+
+    enum TipoMovimentacao {
+        ENTRADA
+        CONSUMO
+        DESPERDICIO
+        AJUSTE
+    }
+
+    enum MotivoDesperdicio {
+        VENCIMENTO
+        DETERIORACAO
+        PREPARO_INCORRETO
+        SOBRA_NAO_APROVEITADA
+        OUTRO
+    }
+
+    class LoteModel {
+        - codigo : String
+        - quantidadeInicial : BigDecimal
+        - quantidadeAtual : BigDecimal
+        - dataEntrada : LocalDate
+        - dataValidade : LocalDate
+        - precoUnitario : BigDecimal
+        + baixar(qtd) : void
+        + creditar(qtd) : void
+        + estaDisponivel() : boolean
+        + estaVencido() : boolean
+        + diasParaVencimento() : long
+    }
+
+    class ProdutoAbertoModel {
+        - dataAbertura : LocalDateTime
+        - quantidadeAberta : BigDecimal
+        - quantidadeUtilizada : BigDecimal
+        - finalizado : boolean
+        + marcarFinalizado() : void
+        + registrarSobra(qtd) : void
+        + getQuantidadeRestante() : BigDecimal
+    }
+
+    ' --------- Bloco: Parâmetros e conferência ---------
+    class ParametroEstoqueModel {
+        - estoqueMinimo : BigDecimal
+        - estoqueMedio : BigDecimal
+        - estoqueMaximo : BigDecimal
+        - consumoMedioDiario : BigDecimal
+        - tempoReposicaoDias : Integer
+        - periodoAnaliseDias : Integer
+        - dataAtualizacao : LocalDateTime
+        + recalcularNiveis(consumoMedio) : void
+    }
+
+    class ConfiguracaoBalancoModel {
+        - periodicidade : PeriodicidadeBalanco
+        - diaExecucao : Integer
+        - proximaExecucao : LocalDate
+        + calcularProximaExecucao(hoje, ultimo) : void
+        + balancoEstaPendente(hoje, emAndamento) : boolean
+    }
+
+    class BalancoModel {
+        - dataHora : LocalDateTime
+        - tipo : PeriodicidadeBalanco
+        - status : StatusBalanco
+        + apurarDiferencas() : void
+        + confirmar() : void
+    }
+
+    class ItemBalancoModel {
+        - quantidadeSistema : BigDecimal
+        - quantidadeFisica : BigDecimal
+        - diferenca : BigDecimal
+        + calcularDiferenca() : BigDecimal
+    }
+
+    enum PeriodicidadeBalanco {
+        DIARIA
+        SEMANAL
+        MENSAL
+    }
+
+    enum StatusBalanco {
+        PENDENTE
+        EM_ANDAMENTO
+        CONCLUIDO
+    }
+
+    ' --------- Bloco: Informação ---------
+    class AlertaModel {
+        - tipo : TipoAlerta
+        - mensagem : String
+        - dataGeracao : LocalDateTime
+        - visualizado : boolean
+        + marcarComoVisualizado() : void
+    }
+
+    enum TipoAlerta {
+        ESTOQUE_BAIXO
+        PROXIMO_VENCIMENTO
+        VENCIDO
+        BALANCO_PENDENTE
+        DIFERENCA_ESTOQUE
+    }
+
+    class RelatorioModel {
+        - tipo : TipoRelatorio
+        - dataInicio : LocalDate
+        - dataFim : LocalDate
+        - dataGeracao : LocalDateTime
+        - linhasGeradas : Integer
+    }
+
+    enum TipoRelatorio {
+        ESTOQUE_ATUAL
+        PROXIMO_VENCIMENTO
+        VENCIDOS
+        PRODUTOS_ABERTOS
+        DESPERDICIO
+        CONSUMO_MEDIO
     }
 
     ' Interfaces de repositório
+    interface IUsuarioRepository <<interface>> {}
+    interface ISessaoRepository <<interface>> {}
+    interface ICategoriaRepository <<interface>> {}
     interface IProdutoRepository <<interface>> {
         + existsByNome(nome) : boolean
         + findByNomeIgnoreCase(nome) : Optional<ProdutoModel>
+        + countByCategoriaIdAndAtivoTrue(catId) : long
     }
-    interface IPeriodoRepository <<interface>> {}
-    interface ICompraRepository <<interface>> {}
-    interface IEstoquePeriodoRepository <<interface>> {}
-    interface IConsumoDiarioRepository <<interface>> {}
-    interface IUsuarioRepository <<interface>> {}
-    interface ISessaoRepository <<interface>> {}
-
-    ' Interfaces de serviço
-    interface IProdutoService <<interface>> {}
-    interface IPeriodoService <<interface>> {}
-    interface ICompraService <<interface>> {}
-    interface IEstoquePeriodoService <<interface>> {}
+    interface ILoteRepository <<interface>> {
+        + sumQuantidadeAtualByProdutoId(produtoId) : BigDecimal
+        + findAllAtivoOrdenado() : List<LoteModel>
+        + findAllDisponiveis() : List<LoteModel>
+    }
+    interface IMovimentacaoEstoqueRepository <<interface>> {
+        + findConsumos(ini, fim) : List<MovimentacaoEstoqueModel>
+        + findDesperdicios(ini, fim) : List<MovimentacaoEstoqueModel>
+    }
+    interface IProdutoAbertoRepository <<interface>> {
+        + sumQuantidadeRestanteByProdutoId(produtoId) : BigDecimal
+    }
+    interface IParametroEstoqueRepository <<interface>> {}
+    interface IConfiguracaoBalancoRepository <<interface>> {}
+    interface IBalancoRepository <<interface>> {}
+    interface IItemBalancoRepository <<interface>> {}
+    interface IAlertaRepository <<interface>> {}
+    interface IRelatorioRepository <<interface>> {}
 
     ' Serviços (regras de negócio)
-    class ProdutoService
-    class PeriodoService
-    class CompraService
-    class EstoquePeriodoService
-    class ConsumoDiarioService
     class UsuarioService
     class SessaoService
+    class CategoriaService
+    class ProdutoService {
+        + obterSaldo(produto) : BigDecimal
+        + obterEstoqueMinimo(produto) : BigDecimal
+    }
+    class LoteService
+    class MovimentacaoService {
+        + registrarEntrada(...) : MovimentacaoView
+        + registrarConsumo(...) : MovimentacaoView
+        + registrarDesperdicio(...) : MovimentacaoView
+        + registrarAjuste(...) : MovimentacaoView
+        + abrirEmbalagem(...) : ProdutoAbertoView
+        + registrarSobra(...) : ProdutoAbertoView
+        + obterSaldo(produtoId) : BigDecimal
+        + custoMedioProduto(produtoId) : BigDecimal
+        + reverterMovimentacao(id) : void
+    }
+    class ProdutoAbertoService
+    class ParametroEstoqueService {
+        + recalcular(produtoId) : ParametroEstoqueModel
+        + contarProdutosComEstoqueBaixo() : long
+    }
+    class ConferenciaService {
+        + iniciarBalanco(usuario) : BalancoView
+        + atualizarQuantidadeFisica(...) : ItemBalancoView
+        + apurar(id) : BalancoView
+        + confirmar(id, usuario) : BalancoView
+    }
+    class AlertaService {
+        + gerarAlertas() : int
+        + marcarComoVisualizado(id) : void
+    }
     class RelatorioService {
-        + relatorioPeriodo(periodoId) : RelatorioCMVPeriodo
-        + relatorioMensal(ano, mes) : RelatorioCMVMensal
-        + matrizConsumo(ano, mes) : ConsumoMatriz
-        + alertasEstoque() : List<AlertaEstoque>
+        + cmv(inicio, fim, vendas) : CMVReportDTO
+        + gerarTipo(tipo, inicio, fim) : RelatorioViewDTO
         + dashboard(ano, mes) : DashboardDTO
     }
 
-    ' DTOs de domínio
-    class ProdutoDTO {}
-    class PeriodoDTO {}
-    class CompraDTO {
-        - produtoId : UUID
-        - periodoId : UUID
-    }
-    class EstoquePeriodoDTO {}
-    class ConsumoDiarioDTO {}
-    class UsuarioDTO {}
-
-    ' Mappers
-    class ProdutoMapper {}
-    class PeriodoMapper {}
-    class CompraMapper {}
-    class EstoquePeriodoMapper {}
-
-    class CompraValidacao {}
-    class PeriodoValidacao {}
-    class ProdutoValidacao {}
-    class EstoquePeriodoValidacao {}
-    class UsuarioValidacao {}
+    ' Validações
+    class CategoriaValidation {}
+    class ProdutoValidation {}
+    class UsuarioValidation {}
 
     ' ---- Herança das entidades no BaseModel ----
-    ProdutoModel -up-|> BaseModel
-    PeriodoModel -up-|> BaseModel
-    CompraModel -up-|> BaseModel
-    EstoquePeriodoModel -up-|> BaseModel
-    ConsumoDiarioModel -up-|> BaseModel
     UsuarioModel -up-|> BaseModel
     SessaoModel -up-|> BaseModel
-
-    ' ---- Herança das DTOs no BaseDTO ----
-    ProdutoDTO -up-|> BaseDTO
-    PeriodoDTO -up-|> BaseDTO
-    CompraDTO -up-|> BaseDTO
-    EstoquePeriodoDTO -up-|> BaseDTO
-    ConsumoDiarioDTO -up-|> BaseDTO
+    CategoriaModel -up-|> BaseModel
+    ProdutoModel -up-|> BaseModel
+    LoteModel -up-|> BaseModel
+    MovimentacaoEstoqueModel -up-|> BaseModel
+    EntradaModel -up-|> MovimentacaoEstoqueModel
+    ConsumoModel -up-|> MovimentacaoEstoqueModel
+    DesperdicioModel -up-|> MovimentacaoEstoqueModel
+    AjusteModel -up-|> MovimentacaoEstoqueModel
+    ProdutoAbertoModel -up-|> BaseModel
+    ParametroEstoqueModel -up-|> BaseModel
+    ConfiguracaoBalancoModel -up-|> BaseModel
+    BalancoModel -up-|> BaseModel
+    ItemBalancoModel -up-|> BaseModel
+    AlertaModel -up-|> BaseModel
+    RelatorioModel -up-|> BaseModel
 
     ' ---- Repositórios especializados herdam do genérico ----
-    IProdutoRepository ..|> IGenericRepository
-    IPeriodoRepository ..|> IGenericRepository
-    ICompraRepository ..|> IGenericRepository
-    IEstoquePeriodoRepository ..|> IGenericRepository
-    IConsumoDiarioRepository ..|> IGenericRepository
     IUsuarioRepository ..|> IGenericRepository
     ISessaoRepository ..|> IGenericRepository
+    ICategoriaRepository ..|> IGenericRepository
+    IProdutoRepository ..|> IGenericRepository
+    ILoteRepository ..|> IGenericRepository
+    IMovimentacaoEstoqueRepository ..|> IGenericRepository
+    IProdutoAbertoRepository ..|> IGenericRepository
+    IParametroEstoqueRepository ..|> IGenericRepository
+    IConfiguracaoBalancoRepository ..|> IGenericRepository
+    IBalancoRepository ..|> IGenericRepository
+    IItemBalancoRepository ..|> IGenericRepository
+    IAlertaRepository ..|> IGenericRepository
+    IRelatorioRepository ..|> IGenericRepository
 
     ' ---- Serviços especializados herdam do genérico ----
+    CategoriaService -up-|> GenericService
     ProdutoService -up-|> GenericService
-    PeriodoService -up-|> GenericService
-    CompraService -up-|> GenericService
-    EstoquePeriodoService -up-|> GenericService
 
-    ConsumoDiarioService -up-|> IConsumoDiarioRepository : usa
-    UsuarioService -up-|> IUsuarioRepository : usa
-    SessaoService -up-|> ISessaoRepository : usa
+    ' ---- Relacionamentos (agregação/composição) ----
+    ProdutoModel "1" *-- "0..*" LoteModel : tem
+    ProdutoModel "1" *-- "0..*" ProdutoAbertoModel : tem
+    ProdutoModel "1" *-- "0..*" MovimentacaoEstoqueModel : sofre
+    MovimentacaoEstoqueModel "1" -> "1" UsuarioModel : executada por
+    MovimentacaoEstoqueModel "1" -> "0..1" LoteModel : referencia
+    ConsumoModel "1" -> "0..1" ProdutoAbertoModel : consome
+    AjusteModel "1" -> "0..1" ItemBalancoModel : origem
 
-    ProdutoService ..|> IProdutoService
-    PeriodoService ..|> IPeriodoService
-    CompraService ..|> ICompraService
-    EstoquePeriodoService ..|> IEstoquePeriodoService
+    CategoriaModel "1" --> "0..*" ProdutoModel : classifica
+    ProdutoModel "1" --> "0..1" ParametroEstoqueModel : parametriza
 
-    ' ---- Mappers usam o mapper genérico ----
-    ProdutoMapper ..|> IGenericMapper
-    PeriodoMapper ..|> IGenericMapper
-    CompraMapper ..|> IGenericMapper
-    EstoquePeriodoMapper ..|> IGenericMapper
+    BalancoModel "1" *-- "0..*" ItemBalancoModel : possui
+    ItemBalancoModel "1" -> "1" ProdutoModel : confere
+    BalancoModel "1" -> "1" UsuarioModel : responsável
+    ConfiguracaoBalancoModel "1" --> "0..*" BalancoModel : agenda
 
-    ' ---- Validações usam a interface genérica ----
-    ProdutoValidacao ..|> IGenericValidation
-    PeriodoValidacao ..|> IGenericValidation
-    CompraValidacao ..|> IGenericValidation
-    EstoquePeriodoValidacao ..|> IGenericValidation
-    UsuarioValidacao ..|> IGenericValidation
+    AlertaModel "1" -> "0..1" ProdutoModel : referencia
+    AlertaModel "1" -> "0..1" LoteModel : referencia
+    AlertaModel "1" -> "0..1" BalancoModel : referencia
 
-    ' ---- Relacionamentos de agregação (cardinalidades) ----
-    PeriodoModel "1" *-- "0..*" CompraModel : possui
-    ProdutoModel "1" *-- "0..*" CompraModel : tem
-    CompraModel *-- PeriodoModel : referência
-    CompraModel *-- ProdutoModel : referência
-
-    PeriodoModel "1" *-- "0..*" EstoquePeriodoModel : possui
-    ProdutoModel "1" *-- "0..*" EstoquePeriodoModel : tem
-
-    ProdutoModel "1" *-- "0..*" ConsumoDiarioModel : registra
-    UsuarioModel "1" *-- "0..*" ConsumoDiarioModel : lança
-
-    ' ---- Atributos/elementos usados pelos enums ----
-    PeriodoModel ..> PeriodoStatus
-    EstoquePeriodoModel ..> EstoqueTipo
-    ConsumoDiarioModel ..> TipoUso
+    ' ---- Atributos/enums usados ----
     UsuarioModel ..> Perfil
+    ProdutoModel ..> UnidadeMedida
+    MovimentacaoEstoqueModel ..> TipoMovimentacao
+    DesperdicioModel ..> MotivoDesperdicio
+    BalancoModel ..> PeriodicidadeBalanco
+    BalancoModel ..> StatusBalanco
+    ConfiguracaoBalancoModel ..> PeriodicidadeBalanco
+    AlertaModel ..> TipoAlerta
+    RelatorioModel ..> TipoRelatorio
 
-    ' ---- Serviços dependem dos repositórios ----
-    RelatorioService --> IProdutoRepository : usa
-    RelatorioService --> IPeriodoRepository : usa
-    RelatorioService --> ICompraRepository : usa
-    RelatorioService --> IEstoquePeriodoRepository : usa
-
-    CompraService ..> ICompraRepository : usa
-    PeriodoService ..> IPeriodoRepository : usa
-    EstoquePeriodoService ..> IEstoquePeriodoRepository : usa
+    ' ---- Serviços usam repositórios ----
+    MovimentacaoService --> ILoteRepository : usa
+    MovimentacaoService --> IProdutoAbertoRepository : usa
+    MovimentacaoService --> IMovimentacaoEstoqueRepository : usa
+    LoteService --> ILoteRepository : usa
+    RelatorioService --> IMovimentacaoEstoqueRepository : usa
+    AlertaService --> ILoteRepository : usa
+    AlertaService --> IBalancoRepository : usa
+    ConferenciaService --> IBalancoRepository : usa
+    ConferenciaService --> IItemBalancoRepository : usa
 }
 
 ' ------------------------------------------------------------
@@ -296,59 +440,50 @@ package "business (Domínio)" {
 ' ------------------------------------------------------------
 package "api (Controllers REST)" {
 
-    class ProdutoController
-    class PeriodoController
-    class CompraController
-    class EstoqueController
-    class UsuarioController
-    class ConsumoDiarioController
-    class RelatorioController
     class AuthController
+    class UsuarioController
+    class CategoriaController
+    class ProdutoController
+    class LoteController
+    class MovimentacaoController
+    class ProdutoAbertoController
+    class ParametroEstoqueController
+    class ConferenciaController
+    class AlertaController
+    class RelatorioController
     class IntegracaoController
 
     ' Herança dos controllers CRUD no genérico
+    CategoriaController -up-|> GenericController
     ProdutoController -up-|> GenericController
-    PeriodoController -up-|> GenericController
-    CompraController -up-|> GenericController
-    EstoqueController -up-|> GenericController
 
     ' Usam os serviços de negócio
-    ProdutoController --> ProdutoService : usa
-    PeriodoController --> PeriodoService : usa
-    CompraController --> CompraService : usa
-    EstoqueController --> EstoquePeriodoService : usa
-    ConsumoDiarioController --> ConsumoDiarioService : usa
-    RelatorioController --> RelatorioService : usa
     AuthController --> UsuarioService : usa
     AuthController --> SessaoService : usa
+    ProdutoController --> ProdutoService : usa
+    CategoriaController --> CategoriaService : usa
+    LoteController --> LoteService : usa
+    MovimentacaoController --> MovimentacaoService : usa
+    ProdutoAbertoController --> ProdutoAbertoService : usa
+    ParametroEstoqueController --> ParametroEstoqueService : usa
+    ConferenciaController --> ConferenciaService : usa
+    AlertaController --> AlertaService : usa
+    RelatorioController --> RelatorioService : usa
+    IntegracaoController --> MovimentacaoService : usa
     IntegracaoController --> RelatorioService : usa
 }
 
 ' ------------------------------------------------------------
-' Pacote: integracao (importação/exportação de planilha)
+' Pacote: integracao (importação/exportação de planilha/CSV)
 ' ------------------------------------------------------------
-package "integracao (Planilha / OCR / CSV)" {
+package "integracao (CSV)" {
 
-    class ImportadorPlanilhaService {
-        + importar(arquivo) : ResultadoImportacao
+    class ProdutoImportadorHelper {
+        + criarProduto(nome, categoria, unidade) : ProdutoModel
+        + listarProdutos() : List<ProdutoModel>
     }
 
-    class ExportadorCsvService {
-        + relatorioCmvPeriodo(rel) : String
-        + relatorioCmvMensal(rel) : String
-    }
-
-    class LeitorReciboService {
-        + importar(arquivo) : LeitorReciboResultado
-    }
-
-    class ParserReciboService {}
-    class GravadorReciboService {}
-    class OcrProperties {}
-
-    IntegracaoController ..> ImportadorPlanilhaService : usa
-    IntegracaoController ..> ExportadorCsvService : usa
-    IntegracaoController ..> LeitorReciboService : usa
+    IntegracaoController ..> ProdutoImportadorHelper : usa
 }
 
 ' ------------------------------------------------------------

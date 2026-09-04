@@ -11,7 +11,7 @@ A aplicação é composta por:
 | Componente | Tecnologia | Porta |
 |---|---|---|
 | Frontend (SPA/PWA) | React 18 + Vite + TypeScript | 5173 (dev) |
-| Backend (API REST) | Java 21 + Spring Boot 4 | 8081 |
+| Backend (API REST) | Java 21 + Spring Boot 4 | 8082 (dev) / 8081 (prod) |
 | Banco de dados | PostgreSQL 16 (Docker) — perfil `dev` | 5433 (host) |
 
 ### Modo de entrega (`prod`)
@@ -24,117 +24,137 @@ gerado por `scripts/build-release.sh` (perfil Spring `prod`). O frontend é **PW
 
 ## Estrutura de pastas
 
-Estrutura inspirada no projeto `carRepairBack`, adaptada com as pastas extras:
-
 ```
 estoQ/
 ├── backend/
 │   └── src/main/java/com/estoq/
 │       ├── core/          # infraestrutura genérica reutilizável
-│       ├── conf/          # configurações (CORS, OpenAPI, seed)
-│       ├── business/      # regras de negócio (domínio)
-│       ├── api/           # camada de apresentação (controllers REST)
-│       ├── integracao/    # importação/exportação (planilha, CSV)
-│       └── EstocApplication.java
+│       │   ├── conf/      # configurações (cors, web, security, docs, seed)
+│       │   ├── controllers/  # GenericController
+│       │   ├── domains/      # BaseModel (UUID, ativo, auditoria)
+│       │   ├── dtos/         # BaseDTO
+│       │   ├── exceptions/   # hierarquia de exceções + handler global
+│       │   ├── helpers/      # IGenericAdapter, NumeroUtil
+│       │   ├── repositories/ # IGenericRepository
+│       │   ├── services/     # GenericService + IGenericService (hooks)
+│       │   └── validations/  # GenericValidation + IGenericValidation
+│       ├── business/      # regras de negócio (módulos auto-contidos)
+│       └── EstoqApplication.java
 ├── frontend/              # SPA React (Vite)
 ├── documentacao/          # esta documentação
 └── docker-compose.yml     # infraestrutura (PostgreSQL)
 ```
+
+> **Nota:** diferente de um projeto com camada `api/` separada, este backend segue o
+> padrão de **módulos auto-contidos**: cada domínio de `business/` reúne seu
+> `Model`, `DTO`, `View`/`Request`, `Adapter`, `Validation`, `Service`,
+> `Repository` e `Controller`. O pacote `api/` foi eliminado — os controllers
+> REST vivem dentro do próprio módulo de negócio (mesma filosofia do projeto de
+> referência **PIAds3** do curso de ADS).
 
 ## Backend
 
 ### camada `core`
 Infraestrutura genérica usada por todos os domínios:
 
-- `domains/BaseModel` — entidade-base com `id` (UUID), `ativo` e auditoria.
-- `dtos/BaseDTO` — DTO-base.
+- `conf/cors/CorsConfig` — libera o frontend de dev.
+- `conf/web/WebConfig` — registra o `AuthInterceptor` em `/api/**`.
+- `conf/security/AuthInterceptor` — autenticação Bearer por sessão.
+- `conf/security/PasswordConfig` — `BCryptPasswordEncoder`.
+- `conf/docs/OpenApiConfig` — Swagger UI em `/swagger-ui.html`.
+- `conf/seed/SeedCatalogConfig` e `conf/seed/SeedUsuariosConfig` — semeadura inicial.
+- `domains/BaseModel` — entidade-base com `id` (UUID), `ativo`, auditoria.
+- `dtos/BaseDTO` — DTO-base com `id`, `ativo`, `dataHoraCriacao`.
 - `services/IGenericService + GenericService` — CRUD genérico (find, insert,
-  update, delete, findAllActive paginado).
+  update, delete, findAllActive paginado e em lista) com hooks de antes/depois.
 - `validations/IGenericValidation` — validações por domínio.
-- `helpers/IGenericMapper` — conversão entidade ↔ DTO (com `toDtoPage`).
+- `helpers/IGenericAdapter` — conversão entidade ↔ DTO (com `toDtoPage`).
 - `controllers/GenericController` — endpoints REST genéricos (`GET`, `POST`,
   `PUT`, `DELETE` por entidade).
-- `exceptions/` — `BusinessException` (mensagem + HTTP status) e handler global.
+- `exceptions/` — `BusinessException`, `FieldValidationException`,
+  `RuleValidationException` e handler global.
 
 ### camada `business`
-Domínios de negócio, cada um com `Model`, `DTO`, `Mapper`, `Repository`,
-`Service` e `Validation`:
+Domínios (módulos auto-contidos, no padrão PIAds3), cada um com `Model`,
+`DTO`/`View`/`Request`, `Adapter`, `Validation`, `IValidation`, `Repository`,
+`Service` e `Controller`:
 
-- `produto` — catálogo de itens (nome, unidade, categoria, estoque mínimo).
-- `periodo` — períodos de apuração (semanas) com vendas e status (aberto/fechado).
-- `compra` — compras por período.
-- `estoque` — estoque inicial/final por período (herança automática entre períodos).
-- `relatorio` — cálculos de CMV, matriz de consumo e alertas de reposição.
-- `usuario` — usuários com perfil `ADMIN`/`COZINHA` e PIN (BCrypt).
-- `sessao` — sessões por token (Bearer), expiração configurável (24 h).
-- `consumodiario` — registros do Uso Diário (tipo `USADO`/`ABERTO` + quantidade).
+- `usuario` + `sessao` — acesso por **PIN** (BCrypt) e sessões Bearer (24 h).
+- `categoria` — classificação do catálogo (CRUD com trava de exclusão).
+- `produto` — catálogo com `unidadeMedida` (enum) e categoria; `saldoAtual` e
+  `estoqueMinimo` derivados (transientes).
+- `parametro` — estoque mínimo, médio, máximo e consumo médio diário por produto.
+- `lote` — recebimentos, vencimento e FIFO.
+- `movimentacao` — `MovimentacaoEstoqueModel` (abstract) com `Entrada`,
+  `Consumo`, `Desperdicio` e `Ajuste` (single-table); regras de baixa,
+  custo do consumo, prejuízo, reversão.
+- `produtoaberto` — embalagens abertas (saldo restante, sobras).
+- `balanco` — conferência física: `Balanco`, `ItemBalanco`,
+  `ConfiguracaoBalanco` e geração de ajustes.
+- `alerta` — estoque baixo, vencimento/vencidos, balanço pendente,
+  diferenças apuradas.
+- `relatorio` — CMV sobre movimentações, relatórios por tipo persistidos e dashboard.
+- `sessao` — sessões de autenticação e `AuthController` (login/logout/me).
 
-### camada `api`
-Controllers REST específicos:
-
-- `controllers/` — Compra, Estoque, Produto, Periodo (endpoints customizados).
-- `relatorio/RelatorioController` — relatórios e dashboard.
-- `dto/` — `CompraView` e `EstoqueView` (projeções com nomes juntos).
+> Os controllers REST de cada domínio (movimentação, lote, produtoaberto,
+> parametro, balanço/conferência, alerta, relatório, categoria, produto,
+> usuário e integração CSV) ficam dentro do próprio módulo em `business/`.
 
 ### camada `integracao`
-- `ImportadorPlanilhaService` — importa a planilha legada (.xls/.xlsx) das abas
-  `CMV SEMANA xx`, criando períodos, compras, estoques e produtos.
-- `ExportadorCsvService` — exporta o relatório CMV de um período em CSV.
-- `IntegracaoController` — expõe `POST /api/integracao/importar-planilha`.
+- `business/produto/IntegracaoController` — importa **CSV** de produtos (cria
+  categorias/produtos e lança entradas) e de movimentações; exporta estoque e
+  CMV em CSV.
+- `business/produto/ProdutoImportadorHelper` — logística de criar/atualizar
+  produtos na importação.
 
-### camada `conf`
-- `CorsConfig` — libera o frontend de dev (`http://localhost:5173`).
-- `OpenApiConfig` — documentação Swagger UI em `/swagger-ui.html`.
-- `SeedCatalogConfig` — insere o catálogo inicial (`seed/produtos.json`),
-  196 produtos, quando o banco está vazio.
-- `AuthInterceptor` + `WebConfig` — exige `Authorization: Bearer <token>` em
-  `/api/**`. Cozinha acessa apenas `/api/consumo-diario/**`, `GET /api/produtos*`
-  e `/api/auth/{me,logout}`.
-- `PasswordConfig` — `BCryptPasswordEncoder`.
-- `SeedUsuariosConfig` — cria os usuários padrão (`000000` Admin, `111111` Cozinha).
+### camada `core/conf`
+- `cors/CorsConfig` — libera o frontend de dev (`http://localhost:5173`).
+- `docs/OpenApiConfig` — Swagger UI em `/swagger-ui.html`.
+- `seed/SeedCatalogConfig` — semeadura inicial: 196 produtos, categorias e
+  `ParametroEstoque` por produto (`seed/produtos.json`).
+- `security/AuthInterceptor` + `web/WebConfig` — exige
+  `Authorization: Bearer <token>` em `/api/**`. Cozinha acessa leituras
+  (produtos, lotes, produtos-abertos, movimentações, categorias) e `POST` de
+  consumo/abrir embalagem/sobra.
+- `security/PasswordConfig` — `BCryptPasswordEncoder`.
+- `seed/SeedUsuariosConfig` — usuários padrão (`000000` Admin, `111111` Cozinha).
 
 ## Frontend
 
 SPA React com `react-router-dom`. Rotas:
 
 ```
-/login          Login por PIN (teclado de 6 dígitos)
-/               Dashboard (CMV do mês, alertas, atalhos)
-/produtos       CRUD do catálogo
-/periodos       CRUD de períodos, fechar período, preparar estoque
-/compras        Lançamentos de compra por período
-/estoque        Estoque inicial/final por período (edição em grade)
-/relatorios     CMV mensal/semanal, matriz de consumo, alertas
-/uso-diario     Uso Diário (cozinha) — itens usados/abertos com quantidade
-/usuarios       Gestão de PINs (somente admin)
-/importar       Upload da planilha legada
+/                Dashboard (CMV do mês, alertas, indicadores)
+/movimentacoes   Movimentações (consumo/entrada + histórico) — cozinha e admin
+/desperdicio     Registro de desperdícios
+/lotes           Lotes, vencimentos e embalagens abertas (abrir/sobra)
+/produtos        CRUD do catálogo (categoria, unidade, mínimo, saldo)
+/conferencia     Balanço físico (config, contagem, apurar, confirmar)
+/relatorios      Dashboard, CMV, relatórios por tipo, alertas, CSV
+/usuarios        Gestão de PINs e perfis (somente admin)
+/login           Login por PIN (teclado de 6 dígitos)
 ```
 
-O frontend consome o backend pela porta 8081 via proxy do Vite
-(`/api` → `http://localhost:8081`), evitando CORS em desenvolvimento.
+O frontend consome o backend via proxy do Vite (`/api` → `http://localhost:8082`),
+evitando CORS em desenvolvimento.
 
-## Fluxo de apuração do CMV
+## Fluxo operacional
 
-1. Cadastre os produtos (ou use o catálogo inicial).
-2. Crie os períodos (semanas) e informe as **vendas** de cada um.
-3. Lance as compras de cada período.
-4. Informe o **estoque inicial** e **final** por produto (a função
-   "preparar estoque" herda o estoque final do período anterior).
-5. O sistema calcula o **consumo** = inicial + compras − final e o
-   **CMV** = valor do consumo ÷ vendas.
+1. Cadastre **categorias** e **produtos** (ou use o catálogo inicial).
+2. **Entrada** registra mercadoria e gera **lotes** (preço = total ÷ qtd).
+3. **Consumo/Desperdício/Ajuste** baixam em FIFO (desperdício com motivo).
+4. **Embalagens abertas** priorizam o consumo antes do lote fechado; sobras voltam.
+5. **Conferência** periódica apura o físico; confirmar gera **ajustes** automáticos.
+6. **Relatórios**: CMV = Σ consumo + Σ desperdício (período) ÷ vendas; tipos
+   por vencimento/estoque/aberto/consumo médio; alertas de reposição.
 
 ## Decisões e regras
 
-- **Valor unitário do estoque final** = o da última compra do período
-  (regra da planilha original). Se não houver compra, usa o valor unitário
-  inicial (herdado).
-- **Valor unitário do estoque inicial** = valor da última compra do período
-  anterior (herança). Para o primeiro período, valor da compra mais antiga
-  ou o informado na planilha.
-- **Vendas não são importadas da planilha** — são informadas por período
-  (os campos da planilha não são confiáveis/estão em branco em alguns casos).
-- **Diferença de CMV esperada**: a planilha original soma o estoque final
-  com preço em branco (valor 0); o estoQ aplica a regra "última compra", o
-  que pode gerar CMV **menor** e mais preciso. Ex.: semana 01 → 0.5568
-  (estoQ) vs 0.5698 (planilha).
-- **Porta 8081**: a porta 8080 é reservada para outra aplicação no ambiente.
+- Saldo derivado (lotes + embalagens abertas); nenhum contador persistido.
+- Consumo custeado pelo **preço do lote de origem**; desperdício pelo **custo
+  médio** (média dos lotes disponíveis).
+- **Unidade de medida** por enum (`KG, G, L, ML, UN, PCT, CARTELA, CX`), com
+  suporte aos valores legados na importação.
+- Exclusão de categoria bloqueada com produtos ativos vinculados.
+- Portas: 8081 em produção (jar) e 8082 em desenvolvimento (PostgreSQL local);
+  a 8080 é reservada para outra aplicação no ambiente.

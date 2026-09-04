@@ -1,176 +1,203 @@
 # estoQ — API REST
 
-Base URL: `http://localhost:8081` · Documentação interativa (Swagger UI):
-`http://localhost:8081/swagger-ui.html`
+Base URL: `http://localhost:8081` (produção, H2) / `http://localhost:8082` (dev, PostgreSQL).
+Swagger UI (se habilitado): `http://localhost:8081/swagger-ui.html`.
 
 ## Autenticação (todas as rotas exigem login)
 
-Toda rota `/api/**` exige o header `Authorization: Bearer <token>`.
-O papel `COZINHA` só acessa consumo diário, listagem de produtos (GET) e
-`/api/auth/{me,logout}`; as demais rotas são do `ADMIN`.
+Toda rota `/api/**` exige `Authorization: Bearer <token>`. O papel `COZINHA`
+acessa apenas: consumo (`POST /api/movimentacoes/consumo`), abertura de
+embalagem (`POST /api/produtos-abertos/abrir`), sobra (`POST
+/api/movimentacoes/sobra`) e leituras (GET) de `/api/produtos`, `/api/lotes`,
+`/api/produtos-abertos`, `/api/movimentacoes`, `/api/categorias` e
+`/api/auth/{me,logout}`. `NUTRICIONISTA` e `ADMIN` usam as demais rotas.
 
 | Método | Caminho | Descrição |
 |---|---|---|
-| POST | `/api/auth/login` | Corpo `{"pin":"000000"}` → devolve `{token, nome, perfil}` |
-| POST | `/api/auth/logout` | Encerra a sessão atual |
+| POST | `/api/auth/login` | `{"pin":"000000"}` → `{token, nome, perfil}` |
+| POST | `/api/auth/logout` | Encerra sessão |
 | GET | `/api/auth/me` | Usuário logado |
-| GET | `/api/usuarios` | Lista usuários (admin) |
-| PUT | `/api/usuarios/{id}/pin` | Troca o PIN (`{"pin":"123456"}`, admin) |
 
 PINs iniciais: Admin `000000` · Cozinha `111111`.
+
+## Categorias
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| GET | `/api/categorias?page=0&size=500` | Lista paginada |
+| GET | `/api/categorias/{id}` | Detalhe |
+| POST | `/api/categorias` | Cria (`{"nome":"Aves","descricao":...}`) |
+| PUT | `/api/categorias/{id}` | Atualiza |
+| DELETE | `/api/categorias/{id}` | Bloqueada se houver produtos vinculados |
 
 ## Produtos
 
 | Método | Caminho | Descrição |
 |---|---|---|
-| GET | `/api/produtos?size=500` | Lista paginada (`Spring Page`) |
+| GET | `/api/produtos?page=0&size=500` | Lista paginada (com `saldoAtual`) |
 | GET | `/api/produtos/{id}` | Detalhe |
-| GET | `/api/produtos/categorias` | Categorias distintas |
+| GET | `/api/produtos/categorias` | Nomes das categorias |
+| GET | `/api/produtos/opcoes-unidade` | Valores de `UnidadeMedida` |
 | POST | `/api/produtos` | Cria produto |
-| PUT | `/api/produtos/{id}` | Atualiza produto |
+| PUT | `/api/produtos/{id}` | Atualiza |
 | DELETE | `/api/produtos/{id}` | Remove (soft delete) |
 
 Corpo (`ProdutoDTO`):
 
 ```json
-{ "nome": "Arroz 5 Kg", "unidade": "und", "categoria": "Grãos", "estoqueMinimo": 7 }
-```
-
-## Períodos
-
-| Método | Caminho | Descrição |
-|---|---|---|
-| GET | `/api/periodos/listar` | Lista ordenados (sem paginação) |
-| GET | `/api/periodos/{id}` | Detalhe |
-| POST | `/api/periodos` | Cria período |
-| PUT | `/api/periodos/{id}` | Atualiza período |
-| POST | `/api/periodos/{id}/fechar` | Fecha o período (bloqueia edições) |
-| DELETE | `/api/periodos/{id}` | Remove |
-
-Corpo (`PeriodoDTO`):
-
-```json
 {
-  "nome": "Semana 04/12/2023 a 11/12/2023",
-  "dataInicio": "2023-12-04",
-  "dataFim": "2023-12-11",
-  "vendas": 27211.82,
-  "status": "ABERTO"
+  "nome": "Café em pó - 500g",
+  "unidadeMedida": "UN",
+  "categoriaId": "<uuid>",
+  "categoriaNome": "Bebidas",
+  "estoqueMinimo": 7,
+  "saldoAtual": 12.5
 }
 ```
 
-## Compras
+`estoqueMinimo` enviado no produto é espelhado em `ParametroEstoque`.
+
+## Lotes
 
 | Método | Caminho | Descrição |
 |---|---|---|
-| GET | `/api/compras/periodo/{periodoId}` | Compras do período (`CompraView` com nomes) |
-| GET | `/api/compras/{id}` | Detalhe |
-| POST | `/api/compras` | Cria compra |
-| PUT | `/api/compras/{id}` | Atualiza |
-| DELETE | `/api/compras/{id}` | Remove |
+| GET | `/api/lotes` | Todos os lotes ativos ordenados por validade |
+| GET | `/api/lotes/disponiveis?produtoId=` | Lotes com saldo (`> 0`) |
+| GET | `/api/lotes/vencendo?produtoId=&dias=7` | Vencem em até `dias` |
+| GET | `/api/lotes/vencidos?produtoId=` | Vencidos |
 
-Corpo (`CompraDTO`):
+`LoteView`: `{ id, codigo, produtoId, produtoNome, unidadeMedida,
+quantidadeInicial, quantidadeAtual, dataEntrada, dataValidade, precoUnitario,
+vencido, disponivel, diasParaVencimento }`.
 
-```json
-{
-  "periodoId": "<uuid>",
-  "produtoId": "<uuid>",
-  "quantidade": 2,
-  "precoUnitario": 27.4,
-  "dataCompra": "2023-12-04"
-}
-```
-
-## Estoque
+## Movimentações
 
 | Método | Caminho | Descrição |
 |---|---|---|
-| GET | `/api/estoque/periodo/{periodoId}` | Estoques do período (`EstoqueView`) |
-| GET | `/api/estoque/{id}` | Detalhe |
-| POST | `/api/estoque` | Cria lançamento |
-| PUT | `/api/estoque/{id}` | Atualiza quantidades |
-| POST | `/api/estoque/preparar/{periodoId}` | Herda estoque inicial do período anterior → retorna `{ "criados": n }` |
-| DELETE | `/api/estoque/{id}` | Remove |
+| GET | `/api/movimentacoes?produtoId=&inicio=YYYY-MM-DD&fim=YYYY-MM-DD` | Lista |
+| POST | `/api/movimentacoes/entrada` | Recebe produto → cria lote |
+| POST | `/api/movimentacoes/consumo` | Consumo (emb. abertas 1º, depois FIFO) |
+| POST | `/api/movimentacoes/desperdicio` | Desperdício com motivo |
+| POST | `/api/movimentacoes/ajuste` | Ajuste (diferença ±, opcional do balanço) |
+| POST | `/api/movimentacoes/sobra` | Devolve sobra de embalagem ao estoque |
+| POST | `/api/movimentacoes/{id}/reverter` | Reverte entrada/consumo/desperdício |
 
-Corpo (`EstoquePeriodoDTO`):
+Corpos de exemplo:
 
 ```json
-{
-  "periodoId": "<uuid>",
-  "produtoId": "<uuid>",
-  "quantidadeInicial": 2,
-  "valorUnitarioInicial": 25.85,
-  "quantidadeFinal": 4,
-  "valorUnitarioFinal": 27.4
-}
+// entrada
+{ "produtoId": "<uuid>", "quantidade": 5, "valorTotalPago": 87.5,
+  "unidadeCompra": "KG", "dataValidade": "2026-10-01", "observacao": "" }
+// consumo
+{ "produtoId": "<uuid>", "quantidade": 1.5, "produtoAbertoId": null, "observacao": "" }
+// desperdício (motivo ∈ VENCIMENTO|DETERIORACAO|PREPARO_INCORRETO|SOBRA_NAO_APROVEITADA|OUTRO)
+{ "produtoId": "<uuid>", "quantidade": 0.8, "motivo": "DETERIORACAO",
+  "descricaoMotivo": "", "loteId": null, "observacao": "" }
+// ajuste
+{ "produtoId": "<uuid>", "diferenca": -2.3, "justificativa": "Conferência", "observacao": "" }
+// sobra
+{ "produtoAbertoId": "<uuid>", "quantidade": 0.5 }
 ```
+
+`MovimentacaoView`: `{ id, tipo, dataHora, produtoId, produtoNome,
+unidadeMedida, quantidade, quantidadeAnterior, quantidadePosterior,
+observacao, usuarioNome, loteId, loteCodigo, motivo, valorPrejuizo,
+custoConsumo, diferencaApurada }`.
+
+## Embalagens abertas
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| GET | `/api/produtos-abertos?produtoId=` | Embalagens abertas não finalizadas |
+| POST | `/api/produtos-abertos/abrir` | `{produtoId, quantidade, loteId?}` (baixa lote e "abre") |
+
+## Parâmetros de estoque
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| GET | `/api/parametros-estoque/produto/{id}` | Parâmetros do produto |
+| PUT | `/api/parametros-estoque/produto/{id}` | `{tempoReposicaoDias, periodoAnaliseDias, estoqueMinimo}` |
+| POST | `/api/parametros-estoque/produto/{id}/recalcular` | Recalcula níveis pelo consumo |
+| POST | `/api/parametros-estoque/recalcular-todos` | Recalcula todos → `{atualizados: n}` |
+| GET | `/api/parametros-estoque/produtos-baixos` | `{qtd: n}` abaixo do mínimo |
+
+## Conferência física
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| GET | `/api/conferencia/configuracao` | Configuração (ou `null`) |
+| PUT | `/api/conferencia/configuracao` | `{periodicidade, diaExecucao}` (`DIARIA\|SEMANAL\|MENSAL`) |
+| GET | `/api/conferencia/balancos` | Lista de balanços |
+| POST | `/api/conferencia/balancos/iniciar` | Cria balanço com item por produto com saldo |
+| GET | `/api/conferencia/balancos/{id}` | Balanço + itens |
+| PUT | `/api/conferencia/balancos/{id}/itens/{itemId}` | `{quantidadeFisica}` |
+| POST | `/api/conferencia/balancos/{id}/apurar` | Atualiza saldo de sistema e apura diferenças |
+| POST | `/api/conferencia/balancos/{id}/confirmar` | Gera ajustes das divergências e conclui |
+
+## Alertas
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| POST | `/api/alertas/gerar` | Gera alertas (estoque baixo, venc./vencimento, balanço) → `{gerados}` |
+| GET | `/api/alertas` | Todos |
+| GET | `/api/alertas/pendentes` | Não visualizados |
+| GET | `/api/alertas/pendentes/contar` | `{qtd}` |
+| PUT | `/api/alertas/{id}/visualizado` | Marca como visto |
 
 ## Relatórios
 
 | Método | Caminho | Descrição |
 |---|---|---|
-| GET | `/api/relatorios/cmv/periodo/{periodoId}` | CMV de um período |
-| GET | `/api/relatorios/cmv/mensal?mes=12&ano=2023` | CMV mensal (default 12/2023) |
-| GET | `/api/relatorios/consumo/matriz` | Matriz de consumo (produto × período) |
-| GET | `/api/relatorios/alertas-estoque` | Alertas de reposição |
-| GET | `/api/relatorios/dashboard` | Totais do dashboard |
+| GET | `/api/relatorios/cmv?inicio=&fim=&vendas=` | CMV do período (consumo + desperdício ÷ vendas) |
+| POST | `/api/relatorios/{tipo}?inicio=&fim=` | Gera relatório de um `tipo` (persiste) |
+| GET | `/api/relatorios/historico` | Relatórios persistidos |
+| GET | `/api/relatorios/dashboard?ano=&mes=` | Indicadores (default 12/2023) |
 
-Saída de `cmv/mensal`:
+`tipo` ∈ `ESTOQUE_ATUAL` | `PROXIMO_VENCIMENTO` | `VENCIDOS` |
+`PRODUTOS_ABERTOS` | `DESPERDICIO` | `CONSUMO_MEDIO`.
 
-```json
-{
-  "ano": 2023, "mes": 12,
-  "vendas": ..., "totalEstoqueInicial": ..., "totalCompras": ...,
-  "totalEstoqueFinal": ..., "totalConsumo": ..., "cmv": 0.5568,
-  "periodos": [ { "periodoId": ..., "periodoNome": ..., "cmv": ..., "itens": [...] } ]
-}
-```
-
-Saída de `alertas-estoque` (item):
-
-```json
-{ "produtoId": ..., "produtoNome": ..., "unidade": ..., "categoria": ...,
-  "estoqueAtual": ..., "estoqueMinimo": ..., "consumoMedioSemanal": ...,
-  "status": "REPOR" | "ATENCAO" | "OK" | "SEM_DADOS" }
-```
-
-## Integração
-
-| Método | Caminho | Descrição |
-|---|---|---|
-| POST | `/api/integracao/importar-planilha` | `multipart/form-data`, campo `arquivo` (.xls/.xlsx) |
-| GET | `/api/integracao/relatorio-cmv/{periodoId}.csv` | Exporta CMV do período em CSV (`Content-Disposition: attachment`) |
-
-Resultado da importação:
+Saída de `cmv`:
 
 ```json
 {
-  "periodos": 4, "compras": 335, "estoques": 436,
-  "produtosCriados": 17, "produtosAtualizados": 0,
-  "mensagem": "Importação concluída com sucesso."
+  "dataInicio": "2026-09-01", "dataFim": "2026-09-30",
+  "vendas": 12000, "metaCmv": 0.4,
+  "totalConsumo": ..., "totalDesperdicio": ..., "totalGeral": ..., "cmv": 0.35,
+  "itens": [ { "produtoId": ..., "produtoNome": ..., "categoriaNome": ...,
+               "unidadeMedida": "KG", "entradasQtd": ..., "entradasValor": ...,
+               "consumoQtd": ..., "consumoValor": ..., "desperdicioQtd": ...,
+               "desperdicioValor": ..., "totalValor": ... } ]
 }
 ```
 
-## Consumo diário
+Imprimir/preencher o BALANÇO e o dashboard:
+
+```json
+{ "ano": 2026, "mes": 9, "metaCmv": 0.4, "cmvMes": ..., "consumoMes": ...,
+  "desperdicioMes": ..., "totalProdutos": 196, "produtosComEstoqueBaixo": 12,
+  "lotesVencendo": 3, "lotesVencidos": 1, "balancoPendente": true,
+  "alertasPendentes": 5, "principaisAlertas": [ ...AlertaView... ] }
+```
+
+## Integração (CSV)
 
 | Método | Caminho | Descrição |
 |---|---|---|
-| POST | `/api/consumo-diario` | Registra uso/aberto: `{"data":"2026-08-29","produtoId":"<uuid>","tipo":"USADO","quantidade":2}` |
-| GET | `/api/consumo-diario?data=YYYY-MM-DD` | Registros do dia (default hoje) |
-| GET | `/api/consumo-diario/hoje` | Registros de hoje |
-| GET | `/api/consumo-diario/todas` | Todos os registros |
-| GET | `/api/consumo-diario/sumario?data=...` | Totais agrupados por produto+tipo |
-| DELETE | `/api/consumo-diario/{id}` | Exclui (cozinha: só os próprios registros de hoje) |
+| POST | `/api/integracao/importar-produtos` | `multipart`, campo `arquivo` (CSV `produto;categoria;quantidade;valor;datavalidade;unidade`) |
+| POST | `/api/integracao/importar-movimentacoes` | `multipart` (CSV `produto;tipo;quantidade;valor` — `tipo` = `ENTRADA`/`CONSUMO`) |
+| GET | `/api/integracao/exportar/estoque` | CSV de produtos com saldo e mínimo |
+| GET | `/api/integracao/exportar/cmv?inicio=&fim=` | CSV do CMV |
 
-`tipo` ∈ `USADO` | `ABERTO`.
+CSVs aceitam `;` ou `,` como separador; `data` em `dd/MM/yyyy`. Resultado:
+`{ importadas, ignoradas, erros[] }`.
 
 ## Erros
 
-Formato de erro (HTTP status correspondente):
+Formato (HTTP status correspondente):
 
 ```json
 { "title": "<razão>", "message": "<mensagem amigável>" }
 ```
 
-Ex.: período não encontrado → 404; validação falhou → 400/422; período
-fechado → 409 ao tentar editar.
+Ex.: produto não encontrado → 404; validação falhou → 400/422; categoria com
+produtos → 409; sessão inválida → 401; COZINHA em rota restrita → 403.

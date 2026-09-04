@@ -23,6 +23,7 @@ backend/.github/
 
 # === Distribuição (binário compilado) ===
 distribuicao/estoq.jar
+distribuicao/dados/
 
 # === Environment ===
 .env

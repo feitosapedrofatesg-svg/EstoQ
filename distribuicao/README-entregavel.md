@@ -29,8 +29,8 @@ banco de dados. Não precisa de internet, Docker, PostgreSQL nem Node.
 ## Login (PINs de 6 dígitos)
 | Perfil | PIN | O que faz |
 | --- | --- | --- |
-| **Admin** | `000000` | Tudo: produtos, compras, estoque, relatórios, períodos, usuários |
-| **Cozinha** | `111111` | Só o Uso Diário (itens usados / abertos) |
+| **Admin** | `000000` | Tudo: produtos, movimentações, lotes, desperdício, conferência, relatórios, usuários |
+| **Cozinha** | `111111` | Movimentações (consumo/entrada/sobras) e consulta de produtos e lotes |
 
 > O admin pode trocar o PIN de cada usuário na tela **Usuários**. Se redefinir,
 > anote o novo PIN.

@@ -6,7 +6,7 @@
 # 1. Banco de dados (PostgreSQL via Docker)
 docker compose up -d postgres
 
-# 2. Backend (porta 8081)
+# 2. Backend (porta 8081 em prod; dev usa 8082)
 cd backend
 mvn spring-boot:run
 
@@ -16,85 +16,88 @@ npm install
 npm run dev
 ```
 
-Acesse `http://localhost:5173`. API em `http://localhost:8081`, Swagger em
-`http://localhost:8081/swagger-ui.html`.
-
-> A porta 8080 é usada por outra aplicação no ambiente; por isso o backend
-> roda na **8081** (configurado em `application.properties`).
+Acesse `http://localhost:5173`. API em `http://localhost:8082` (dev) /
+`http://localhost:8081` (prod), Swagger em `http://localhost:8081/swagger-ui.html`.
 
 ## Login (PIN de 6 dígitos)
 
-- **Administrador** — PIN `000000`: acesso total (relatórios, cadastros, importação).
-- **Cozinha** — PIN `111111`: tela de **Uso diário** (registra itens usados e abertos do dia).
-- O admin pode trocar os PINs em **Usuários** (sidebar).
+- **Administrador** — PIN `000000`: acesso total (relatórios, cadastros,
+  movimentações, conferência, usuários).
+- **Cozinha** — PIN `111111`: só a tela **Movimentações** (registra consumo,
+  entrada e sobras), **Produtos** e **Lotes** em leitura.
+- **Nutricionista** — criado pelo admin em **Usuários** (mesmo fluxo de PIN).
 
-## Fluxo de uso
+## Fluxo de uso do dia a dia
 
 ### 1. Produtos
-- Lista com 196 itens do catálogo inicial (semeado automaticamente).
-- Crie edições com o botão **+ Novo produto** (nome, unidade, categoria,
-  estoque mínimo semanal).
-- Busque por nome e filtre por categoria.
+- Lista os itens do catálogo (196 itens iniciais semeado automaticamente) com
+  **saldo atual** (soma dos lotes + embalagens abertas) e **estoque mínimo**.
+- Ao criar/editar informe nome, **categoria** (cadastre antes em *Categorias*),
+  **unidade de medida** e estoque mínimo — o mínimo é espelhado em
+  *Parâmetros de estoque*.
+- **Recalcular parâmetros** recalcula mínimo/médio/máximo a partir do consumo médio.
+- O saldo em **vermelho** indica produto abaixo do mínimo (repor).
 
-### 2. Períodos
-- Crie um período por semana informando datas e **vendas** (R$ vendidos no
-  período — não vêm da planilha).
-- **Preparar estoque**: preenche os estoques iniciais dos produtos com o
-  estoque final do período anterior (automatiza a manutenção semanal).
-- **Fechar** bloqueia edições do período (trava o resultado apurado).
+### 2. Movimentações (operação do dia)
+Abas:
+- **Consumo** — baixa o item (primeiro das embalagens abertas, depois FIFO por
+  validade). Campos: produto, quantidade, embalagem aberta (opcional),
+  observação. É a tela principal da **cozinha**.
+- **Entrada** — recebimento de mercadoria: produto, quantidade, valor total
+  pago, unidade de compra, validade e observação. Gera um **lote**.
 
-### 3. Compras
-- Selecione o período, adicione cada compra (produto, quantidade, preço,
-  data). O total é calculado automaticamente.
-- Período fechado não permite edição.
+Toda movimentação fica registrada (quem, quando, saldo antes/depois). O admin
+pode **reverter** entradas/consumos/desperdícios não usados.
 
-### 4. Estoque
-- Edite em grade o **estoque inicial** e **final** de cada produto na semana.
-- A coluna "consumo sugerido" mostra inicial − final.
-- **Salvar alterações** persiste tudo de uma vez.
+### 3. Lotes
+- Lista todos os lotes com situação (disponível/vencendo/vencido).
+- **Embalagens abertas**: ao abrir uma embalagem (botão "Abrir embalagem"
+  baixa do lote e cria um item aberto), o consumo passa a priorizá-la.
+- **Registrar sobra** devolve a sobra ao lote de origem (ou cria um novo lote).
 
-### 5. Relatórios
-- **CMV**: uma aba com o CMV do mês (12/2023 por padrão) e o detalhe por
-  período (clique nos períodos). A tabela detalhada mostra consumo por
-  produto, e o rodapé mostra CMV e totais (inicial + compras − final).
-- **Matriz de consumo**: consumo de cada produto em cada período.
-- **Alertas de estoque**: status por produto em relação ao mínimo e ao
-  consumo médio semanal (`REPOR`, `ATENCAO`, `OK`, `SEM_DADOS`).
+### 4. Desperdício
+- Registre perdas com **motivo** (vencimento, deterioração, preparo incorreto,
+  sobra não aproveitada, outro) — opcionalmente vinculadas a um lote.
+- O **valor do prejuízo** (qtd × custo médio) entra no relatório de CMV.
 
-### 6. Uso diário (cozinha / tablet)
-- A **cozinha** informa os **itens usados no dia** e os **itens abertos**
-  (embalagens abertas): escolhe o produto, ajusta a quantidade e toca em
-  **"Usado hoje"** ou **"Item aberto"**.
-- Cada registro guarda produto, quantidade, tipo e quem fez (auditoria).
-- O **admin** vê os mesmos registros em **Uso diário** pelo menu e pode
-  excluir qualquer um; a cozinha só pode excluir os que criou no dia.
+### 5. Conferência (balanço físico)
+- Configure a periodicidade (`DIARIA`/`SEMANAL`/`MENSAL`) e o dia de execução.
+- **Iniciar balanço** cria um item por produto com saldo; informe a
+  **quantidade física** contada em cada item.
+- **Apurar** recalcula o saldo de sistema e mostra as diferenças;
+  **Confirmar** gera um **ajuste** (movimentação) por item divergente e conclui.
 
-### 7. Importar planilha
-- Envie a planilha legada do dez/2022 (.xls/.xlsx). O sistema lê as abas
-  `CMV SEMANA xx`, importa períodos, compras e estoques, e cadastra produtos
-  novos. As **vendas** continuam sendo informadas manualmente em Períodos.
+### 6. Relatórios
+- **Dashboard**: consumo do mês, desperdício, % CMV (meta 40%), produtos
+  abaixo do mínimo, lotes vencendo/vencidos, balanço pendente e alertas.
+- **CMV**: produção por período (data início/fim + vendas opcionais) com
+  tabela por produto (consumo + desperdício) e % CMV.
+- **Relatórios por tipo**: estoque atual, próximos vencimentos, vencidos,
+  produtos abertos, desperdício, consumo médio — exportáveis em CSV.
 
-## Significado dos status de alerta
+### 7. Alertas
+- Em **Relatórios → Dashboard**, "Gerar alertas" cria alertas de estoque baixo,
+  vencimento/vencidos, balanço pendente e diferenças apuradas; marque como
+  visualizados os já tratados.
 
-| Status | Significado |
-|---|---|
-| `REPOR` | estoque atual ≤ estoque mínimo → comprar |
-| `ATENCAO` | estoque atual acima do mínimo, mas abaixo do consumo médio semanal |
-| `OK` | estoque saudável (≥ consumo médio) |
-| `SEM_DADOS` | sem estoque/consumo suficiente para calcular |
+### 8. Importar / exportar CSV
+- `importar-produtos`: CSV `produto;categoria;quantidade;valor;datavalidade;unidade`
+  cria categorias/produtos ausentes e registra as entradas (lotes).
+- `importar-movimentacoes`: CSV `produto;tipo;quantidade;valor`
+  (`tipo` = `ENTRADA`/`CONSUMO`).
+- Exportação de estoque e CMV em CSV (em Relatórios).
 
 ## Sobre o CMV
 
-`CMV = (estoque inicial + compras − estoque final) ÷ vendas`.
+`CMV = Σ custo dos consumos + Σ valor dos desperdícios (no período) ÷ vendas`.
 
-Se o CMV vier **diferente** do valor da planilha antiga, a provável causa é:
-a planilha deixava o preço do estoque final em branco (somava como 0); o
-estoQ usa o preço da última compra do período (regra da própria planilha,
-anotada nas abas). Resultado: um CMV **menor e mais exato**. Ex.: semana 01
-→ 0.5568 (estoQ) vs 0.5698 (planilha).
+O custo do consumo é **qtd × preço do lote de origem** (FIFO/embalagem aberta);
+o valor do desperdício é **qtd × custo médio do produto**. Vendas são
+informadas manualmente na consulta.
 
 ## Exportação / dados
 
-- Relatório CMV de um período pode ser exportado em CSV:
-  `GET http://localhost:8081/api/integracao/relatorio-cmv/{periodoId}.csv`.
-- Para recomeçar do zero (dados de teste): `docker compose down -v && docker compose up -d postgres` e reinicie o backend — o catálogo é semeado novamente.
+- CSV de estoque e CMV via `/api/integracao/exportar/estoque` e
+  `/api/integracao/exportar/cmv`.
+- Recomeçar (dados de teste): `docker compose down -v && docker compose up -d postgres`,
+  reinicie o backend — o catálogo e as categorias são semeados novamente.
