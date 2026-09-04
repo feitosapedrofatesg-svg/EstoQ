@@ -6,6 +6,7 @@ import com.estoq.core.exceptions.FieldValidationException;
 import com.estoq.core.exceptions.RuleValidationException;
 import com.estoq.core.repositories.IGenericRepository;
 import com.estoq.core.validations.IGenericValidation;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,15 @@ public abstract class GenericService<E extends BaseModel, R extends IGenericRepo
 		} catch (Exception e) {
 			throw new BusinessException("Erro ao localizar os registros em " + getEntityName(), e);
 		}
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<E> findAllActive() {
+		return repository.findAll()
+				.stream()
+				.filter(BaseModel::isAtivo)
+				.toList();
 	}
 
 	@Override
@@ -102,10 +112,12 @@ public abstract class GenericService<E extends BaseModel, R extends IGenericRepo
 		}
 	}
 
+	// Auxiliar para mensagens dinâmicas
 	protected String getEntityName() {
 		return this.getClass().getSimpleName().replace("Service", "");
 	}
 
+	// Métodos Hook (Ganchos) para serem sobrescritos no Business
 	protected void beforeInsert(E entity) {
 	}
 
