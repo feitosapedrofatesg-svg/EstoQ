@@ -151,7 +151,21 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
     setLinhas((ls) => ls.filter((l) => l.key !== key));
   }
 
+  function adicionarItemFaltando() {
+    setLinhas((ls) => [
+      ...ls,
+      { key: `manual-${Date.now()}-${ls.length}`, original: "", produtoId: "", nomeProduto: "", novoNome: "", quantidade: "1", valorUnitario: "" },
+    ]);
+    setErro("");
+    setStatus("Item adicionado. Escolha um produto do catálogo ou digite o nome do novo e confirme.");
+  }
+
   async function confirmar() {
+    const semNome = linhas.filter((l) => l.produtoId === "" && !(l.novoNome || l.original).trim());
+    if (semNome.length > 0) {
+      setErro("Informe o nome nos itens marcados como novo produto (ou escolha um do catálogo).");
+      return;
+    }
     const validas = linhas.filter((l) => parseFloat(l.quantidade) > 0);
     if (validas.length === 0) {
       setErro("Nenhuma linha válida para registrar (informe uma quantidade > 0).");
@@ -228,6 +242,15 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
 
       {erro && <div className="form-error" style={{ marginTop: 8 }}>{erro}</div>}
 
+      {!temItens && (
+        <div className="form-actions" style={{ marginTop: 10 }}>
+          <button className="btn" onClick={adicionarItemFaltando} title="Cadastra um item manualmente, sem depender do OCR/cupom">
+            ＋ Item faltando
+          </button>
+          <span className="muted small">adicionar manualmente um item que não veio no cupom</span>
+        </div>
+      )}
+
       {temItens && (
         <div style={{ marginTop: 16 }}>
           <div className="small muted" style={{ marginBottom: 6 }}>{baseInfo}</div>
@@ -257,8 +280,8 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
                     <td>
                       <button className="btn small danger" title="Remover" onClick={() => removerLinha(l.key)}>✕</button>
                     </td>
-                    <td className="small muted">
-                      {l.original}
+                    <td className="small muted" style={{ paddingTop: 6 }}>
+                      {l.original || l.novoNome || "—"}
                       {l.produtoId === "" && (
                         <span className="badge info" style={{ marginLeft: 8 }}>Novo</span>
                       )}
@@ -313,6 +336,7 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
 
           <div className="form-actions">
             <button className="btn" onClick={() => { setLinhas([]); setStatus(""); setErro(""); }}>Limpar lista</button>
+            <button className="btn" onClick={adicionarItemFaltando} title="Adiciona uma linha em branco para o item que não veio no cupom">＋ Item faltando</button>
             <button
               className="btn primary"
               disabled={salvando || linhas.filter((l) => parseFloat(l.quantidade) > 0).length === 0}
