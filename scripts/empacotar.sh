@@ -74,6 +74,8 @@ for tipo in app-image deb; do
     mkdir -p "$DIRE"
     dpkg-deb -R "$DEB" "$DIRE"
     sed -i 's/^Categories=.*/Categories=Office;/' "$DIRE/opt/estoq/lib/estoq-EstoQ.desktop"
+    # dependência de OCR para leitura de cupom por foto
+    sed -i 's/^Depends:.*/&, tesseract-ocr, tesseract-ocr-por/' "$DIRE/DEBIAN/control"
     rm -f "$DEB"
     dpkg-deb -b "$DIRE" "$DEB"
   fi

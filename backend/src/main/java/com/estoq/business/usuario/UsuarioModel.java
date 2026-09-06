@@ -32,4 +32,7 @@ public class UsuarioModel extends BaseModel {
 
 	@Column(name = "bloqueado_ate")
 	private LocalDateTime bloqueadoAte;
+
+	@Column(name = "trocar_pin", nullable = false)
+	private boolean trocarPin;
 }

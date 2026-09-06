@@ -57,6 +57,7 @@ public class SeedUsuariosConfig {
 		usuario.setNome(nome);
 		usuario.setPin(passwordEncoder.encode(pin));
 		usuario.setPerfil(perfil);
+		usuario.setTrocarPin(true);
 		usuarioRepository.save(usuario);
 		log.info("Usuário inicial criado: {} (perfil {}).", nome, perfil);
 	}

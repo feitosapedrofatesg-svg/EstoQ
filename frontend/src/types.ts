@@ -286,6 +286,7 @@ export interface LoginResponse {
   token: string;
   nome: string;
   perfil: Perfil;
+  trocarPin?: boolean;
 }
 
 export type MotivoDesperdicio =

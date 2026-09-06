@@ -66,7 +66,7 @@ public class AuthController {
 		SessaoModel sessao = sessaoService.criar(usuario.getId(), http.getRemoteAddr());
 		auditService.registrar("LOGIN", "SESSAO", sessao.getId().toString(),
 				"Login realizado por " + usuario.getNome(), usuario);
-		return new LoginResponse(sessao.getToken(), usuario.getNome(), usuario.getPerfil());
+		return new LoginResponse(sessao.getToken(), usuario.getNome(), usuario.getPerfil(), usuario.isTrocarPin());
 	}
 
 	@PostMapping("/logout")

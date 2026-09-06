@@ -30,7 +30,7 @@ public class MigracaoBalancosConfig {
 	private JdbcTemplate jdbcTemplate;
 
 	@Bean
-	@Order(1)
+	@Order(0)
 	public CommandLineRunner migrarStatusCANCELADO() {
 		return args -> {
 			try {
@@ -44,6 +44,25 @@ public class MigracaoBalancosConfig {
 				}
 			} catch (Exception e) {
 				log.warn("Migração de BALANCOS.STATUS não executada: {}", e.getMessage());
+			}
+		};
+	}
+
+	@Bean
+	@Order(0)
+	public CommandLineRunner migrarTrocarPinUsuarios() {
+		return args -> {
+			try {
+				List<Map<String, Object>> linhas = jdbcTemplate.queryForList(
+						"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+								+ "WHERE TABLE_NAME = 'USUARIOS' AND COLUMN_NAME = 'TROCAR_PIN'");
+				if (linhas.isEmpty()) {
+					jdbcTemplate.execute(
+							"ALTER TABLE USUARIOS ADD COLUMN TROCAR_PIN BOOLEAN DEFAULT FALSE NOT NULL");
+					log.info("Coluna USUARIOS.TROCAR_PIN adicionada (migração).");
+				}
+			} catch (Exception e) {
+				log.warn("Migração de USUARIOS.TROCAR_PIN não executada: {}", e.getMessage());
 			}
 		};
 	}

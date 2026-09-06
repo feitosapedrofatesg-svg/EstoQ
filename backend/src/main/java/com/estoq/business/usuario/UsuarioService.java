@@ -31,6 +31,7 @@ public class UsuarioService extends GenericService<UsuarioModel, IUsuarioReposit
 		usuario.setPin(passwordEncoder.encode(pin));
 		usuario.setTentativasFalhas(0);
 		usuario.setBloqueadoAte(null);
+		usuario.setTrocarPin(false);
 		UsuarioModel salvo = repository.save(usuario);
 		auditService.registrar("ALTERACAO", "USUARIO", id.toString(),
 				"PIN alterado para o usuário " + usuario.getNome(), null);

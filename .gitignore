@@ -17,10 +17,6 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 
-# === GitHub tooling artifacts ===
-.github/modernize/
-backend/.github/
-
 # === Distribuição (binário compilado) ===
 distribuicao/estoq.jar
 distribuicao/dados/

@@ -74,8 +74,7 @@ O código é o mesmo e já é multiplataforma (launcher, banco H2, pastas de dad
 O único detalhe é que o instalador Windows **precisa ser gerado numa máquina com Windows**,
 porque o `jpackage` só produz instaladores da plataforma onde roda.
 
-Roteiro completo (ferramentas, geração do `.msi`, instalação, testes) está em
-`entregaveis/ROTEIRO-WINDOWS.md`. Resumo:
+O roteiro de geração está no script `scripts/empacotar-win.ps1`. Resumo:
 
 ```powershell
 # num PC Windows, dentro de scripts/ (com JDK 21+Node+Maven e WiX 3.0 instalados):
