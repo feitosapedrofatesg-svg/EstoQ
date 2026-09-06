@@ -37,6 +37,16 @@ class QrCodeReaderTest {
 		assertNull(reader.detectarQrCode(null));
 	}
 
+	@Test
+	void nfceReader_urlComPipe_naoLancaExcecao() {
+		NfceReader reader = new NfceReader();
+		// URL real do QR Code NFC-e (ex.: Goiás) contém '|' no query
+		String url = "https://nfe.sefaz.go.gov.br/nfeweb/sites/nfce/danfeNFCe?p="
+				+ "5226xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|2|1|1|18909cb8xxxxxxxx";
+		// novo URL() deve aceitar o pipe — URI.create lançaria IllegalArgumentException.
+		assertNull(reader.obterXml(url));
+	}
+
 	private BufferedImage gerarQr(String conteudo) throws Exception {
 		Map<EncodeHintType, Object> hints = new HashMap<>();
 		hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);

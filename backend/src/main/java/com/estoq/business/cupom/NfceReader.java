@@ -8,7 +8,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
@@ -63,7 +62,9 @@ public class NfceReader {
 
 	private String baixar(String urlStr) {
 		try {
-			URL url = URI.create(urlStr).toURL();
+			// new URL aceita '|' no query (presente na URL do QR Code NFC-e);
+			// URI.create rejeita e lançaria IllegalArgumentException.
+			URL url = new URL(urlStr);
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setConnectTimeout(TIMEOUT_MS);
 			conn.setReadTimeout(TIMEOUT_MS);
