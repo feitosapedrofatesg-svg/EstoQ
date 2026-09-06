@@ -21,6 +21,12 @@ public class ItemCupomLeituraDTO {
 
 	private BigDecimal precoTotal;
 
+	/**
+	 * Confiança do item (0..1). Apenas informativa nesta versão; o backend já
+	 * filtra itens abaixo do limiar, então raramente chega com valor baixo.
+	 */
+	private Double confianca;
+
 	public ItemCupomLeituraDTO(String descricao, BigDecimal quantidade, BigDecimal precoUnitario,
 			BigDecimal precoTotal) {
 		this.descricao = descricao;

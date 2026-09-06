@@ -28,9 +28,14 @@ POST /api/cupons/ler (multipart: arquivo)
    └─ roda com --psm 6 e --psm 4 e escolhe o melhor texto
         ↓
 4. CupomParser → interpreta o texto e extrai itens (qtd, preço)
-   └─ ignora linhas de rodapé/tributos (Federal/Estadual/ICMS/PIS/COFINS)
+   └─ classifica cada linha com pontuação de confiança:
+      - descarta lixo de OCR, tributos, totais, cabeçalho/rodapé
+      - aceita apenas linhas com estrutura de produto (nome + qtd + preço)
+      - suporte a EAN na linha, "2 UN", quantidade inteira e decimal BR
         ↓
 Resposta (CupomLeituraDTO): estabelecimento, data, itens, fonte, baixaConfianca
+   └─ cada item traz um campo `confianca` (0.0–1.0); OCR com item
+      abaixo de 0.70 marca `baixaConfianca=true`
 ```
 
 A imagem é processada **em memória** (com arquivo temporário removido ao final,
@@ -48,8 +53,8 @@ a prévia; a confirmação da entrada reutiliza o fluxo existente
 | `QrCodeReader` | Detecta QR Code na imagem (ZXing) |
 | `NfceReader` | Consulta a URL da NFC-e e tenta extrair XML (isolado; falha → OCR) |
 | `OcrService` | OCR do texto da imagem (binário `tesseract` via ProcessBuilder); prepara a imagem (tons de cinza, contraste, ampliação) e escolhe entre `--psm 6`/`--psm 4` o melhor texto |
-| `CupomParser` | Interpreta o texto do OCR → itens/estabelecimento/data; ignora rodapé/tributos |
-| `CupomLeituraDTO` / `ItemCupomLeituraDTO` | Prévia (resposta da API) |
+| `CupomParser` | Interpreta o texto do OCR → itens/estabelecimento/data. Cada linha é **classificada** (não é "qualquer linha com número"): pontuação de confiança, rejeição de lixo de OCR, tributos/totais/cabeçalho/rodapé, EAN, "2 UN" e quantidade+preço BR |
+| `CupomLeituraDTO` / `ItemCupomLeituraDTO` | Prévia (resposta da API); cada item inclui `confianca` |
 
 Endpoint: `POST /api/cupons/ler` — `multipart/form-data`, campo `arquivo` (imagem).
 
@@ -110,4 +115,7 @@ cd backend && mvn -q -DskipTests package
   se a consulta falhar, o sistema **cai para OCR** (nunca trava).
 - O OCR depende da qualidade da foto e do `tesseract`; texto ambíguo é retornado
   com `baixaConfianca=true` para o usuário revisar.
-- O parser cobre formatos brasileiros comuns (nome + quantidade + preço BR).
+- O parser cobre formatos brasileiros comuns (nome + quantidade + preço BR),
+  com EAN e unidade ("2 UN"); exige ao menos quantidade positiva e preço real.
+- Linhas que não pareçam produto (lixo de OCR, tributos, totais, rodapé) são
+  **descartadas** na classificação — não viram itens de estoque.

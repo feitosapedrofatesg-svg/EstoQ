@@ -304,6 +304,7 @@ export interface ItemCupomLeituraDTO {
   quantidade: number;
   precoUnitario: number | null;
   precoTotal: number | null;
+  confianca: number | null;
 }
 
 export interface CupomLeituraDTO {

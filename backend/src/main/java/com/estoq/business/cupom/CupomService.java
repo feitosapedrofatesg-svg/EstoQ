@@ -109,7 +109,12 @@ public class CupomService {
 	private CupomLeituraDTO lerPorOcr(BufferedImage imagem) {
 		String texto = ocrService.lerTexto(imagem);
 		CupomLeituraDTO dto = cupomParser.interpretar(texto);
+		// OCR é sempre de menor confiança que QR/XML; além disso, se houver item
+		// abaixo do limiar de aceite (zona "verificar"), reforça a baixa confiança.
 		dto.setBaixaConfianca(true);
+		if (dto.getItens().stream().anyMatch(i -> i.getConfianca() != null && i.getConfianca() < 0.70)) {
+			dto.setBaixaConfianca(true);
+		}
 		if (dto.getItens().isEmpty()) {
 			log.info("OCR não identificou itens no cupom.");
 		}
