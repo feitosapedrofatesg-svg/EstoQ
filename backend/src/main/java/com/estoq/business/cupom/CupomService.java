@@ -107,8 +107,20 @@ public class CupomService {
 	}
 
 	private CupomLeituraDTO lerPorOcr(BufferedImage imagem) {
-		String texto = ocrService.lerTexto(imagem);
-		CupomLeituraDTO dto = cupomParser.interpretar(texto);
+		// primeiro o OCR espacial (estrutura de colunas do cupom); se nada for
+		// reconhecido, cai para o parser de texto corrido como fallback
+		CupomLeituraDTO dto;
+		try {
+			OcrService.LeituraEspacial espacial = ocrService.lerEspacial(imagem);
+			dto = cupomParser.interpretarTabela(espacial);
+		} catch (Exception ex) {
+			log.warn("OCR espacial falhou ({}); usando fallback textual.", ex.getMessage());
+			dto = null;
+		}
+		if (dto == null || dto.getItens().isEmpty()) {
+			String texto = ocrService.lerTexto(imagem);
+			dto = cupomParser.interpretar(texto);
+		}
 		// OCR é sempre de menor confiança que QR/XML; além disso, se houver item
 		// abaixo do limiar de aceite (zona "verificar"), reforça a baixa confiança.
 		dto.setBaixaConfianca(true);

@@ -14,7 +14,9 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,6 +30,12 @@ import java.util.regex.Pattern;
  * térmico; o texto é obtido com dois modos de segmentação (--psm 6 e --psm 4)
  * e o melhor resultado é escolhido. O arquivo temporário é sempre removido e
  * falhas são registradas em log e reportadas de forma amigável.
+ *
+ * <p>Além do texto plano, este serviço entrega o OCR <strong>espacial</strong>
+ * ({@link #lerEspacial}): a saída TSV do tesseract com caixas delimitadoras de
+ * cada palavra (posição relativa na imagem), usada pelo {@link CupomParser}
+ * para reconstruir a tabela do cupom por colunas (código, descrição, qtde, un,
+ * preço unitário, preço total) em vez de tratar texto corrido.
  */
 @Service
 public class OcrService {
@@ -36,6 +44,9 @@ public class OcrService {
 
 	/** Eixo menor mínimo em px aceitável para o OCR; abaixo disso amplia a imagem. */
 	private static final int EIXO_MENOR_MINIMO = 900;
+
+	/** Eixo alvo para o OCR espacial (tabela com colunas): foto pequena amplia mais. */
+	private static final int EIXO_ESPACIAL_MINIMO = 1800;
 
 	private static final int LADO_MAX_POS_RECONHECIMENTO = 3600;
 
@@ -74,6 +85,101 @@ public class OcrService {
 				}
 			}
 		}
+	}
+
+	/**
+	 * OCR espacial: reconhece as palavras com suas posições (caixas delimitadoras
+	 * TSV do tesseract) e retorna as linhas de texto ordenadas de cima para
+	 * baixo, cada uma com a largura/altura da imagem usada. Usado pelo parser
+	 * para reconstruir a tabela por colunas.
+	 */
+	public LeituraEspacial lerEspacial(BufferedImage imagem) {
+		LeituraEspacial vazio = new LeituraEspacial(imagem == null ? 0 : imagem.getWidth(),
+				imagem == null ? 0 : imagem.getHeight(), List.of());
+		if (imagem == null) {
+			return vazio;
+		}
+		File imagemTmp = null;
+		try {
+			BufferedImage preparada = prepararEspacial(imagem);
+			imagemTmp = File.createTempFile("estoq-cupom-esp", ".png");
+			ImageIO.write(preparada, "png", imagemTmp);
+			String tsv = executar(imagemTmp, "6", "tsv");
+			return new LeituraEspacial(preparada.getWidth(), preparada.getHeight(), interpretarTsv(tsv));
+		} catch (Exception ex) {
+			log.warn("Falha no OCR espacial do cupom ({}): {}", tesseractPath, ex.getMessage());
+			return new LeituraEspacial(imagem.getWidth(), imagem.getHeight(), List.of());
+		} finally {
+			if (imagemTmp != null) {
+				boolean removido = imagemTmp.delete();
+				if (!removido) {
+					imagemTmp.deleteOnExit();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Prepara a foto para o OCR espacial: mesmo pré-processamento do texto, mas
+	 * com ampliação maior quando a imagem é pequena — tabelas de cupom têm linhas
+	 * finas e o tesseract resolve melhor colunas com texto maior.
+	 */
+	BufferedImage prepararEspacial(BufferedImage src) {
+		BufferedImage base = preparar(src);
+		return ampliarAte(base, EIXO_ESPACIAL_MINIMO);
+	}
+
+	/**
+	 * Converte a saída TSV do tesseract em linhas de palavras ordenadas.
+	 * Linhas quebradas pelo tesseract no meio de um item são juntadas quando
+	 * estão verticalmente próximas (mesmo 'line_num' sempre; blocos adjacentes
+	 * com sobreposição vertical são fundidos). O resultado preserva a posição
+	 * relativa de cada palavra para reconstrução da tabela.
+	 */
+	List<LinhaOcr> interpretarTsv(String tsv) {
+		if (tsv == null || tsv.isBlank()) {
+			return List.of();
+		}
+		Map<String, List<PalavraOcr>> agrupadas = new LinkedHashMap<>();
+		String[] linhas = tsv.split("\\r?\\n");
+		for (String l : linhas) {
+			if (l.isBlank() || l.startsWith("level\t")) {
+				continue;
+			}
+			String[] col = l.split("\\t");
+			if (col.length < 12) {
+				continue;
+			}
+			int nivel;
+			try {
+				nivel = Integer.parseInt(col[0]);
+			} catch (NumberFormatException ex) {
+				continue;
+			}
+			if (nivel != 5) {
+				continue;
+			}
+			String texto = col[11];
+			if (texto == null || texto.isBlank()) {
+				continue;
+			}
+			PalavraOcr p = new PalavraOcr(texto, tentarInt(col[6], -1), tentarInt(col[7], -1),
+					tentarInt(col[8], 0), tentarInt(col[9], 0), tentarDouble(col[10], -1));
+			if (p.left() < 0 || p.top() < 0) {
+				continue;
+			}
+			String chave = col[2] + ":" + col[3] + ":" + col[4];
+			agrupadas.computeIfAbsent(chave, k -> new ArrayList<>()).add(p);
+		}
+
+		List<LinhaOcr> resultado = new ArrayList<>();
+		for (List<PalavraOcr> palavras : agrupadas.values()) {
+			palavras.sort((a, b) -> Integer.compare(a.left(), b.left()));
+			int topo = palavras.stream().mapToInt(PalavraOcr::top).min().orElse(0);
+			resultado.add(new LinhaOcr(topo, palavras));
+		}
+		resultado.sort((a, b) -> Integer.compare(a.topo(), b.topo()));
+		return resultado;
 	}
 
 	/**
@@ -134,7 +240,7 @@ public class OcrService {
 		return n;
 	}
 
-	private String executar(File imagemTmp, String psm) {
+	private String executar(File imagemTmp, String psm, String... configs) {
 		List<String> cmd = new ArrayList<>();
 		cmd.add(tesseractPath);
 		if (dataPath != null && !dataPath.isBlank()) {
@@ -150,6 +256,11 @@ public class OcrService {
 		cmd.add(psm);
 		cmd.add(imagemTmp.getAbsolutePath());
 		cmd.add("stdout");
+		for (String c : configs) {
+			if (c != null && !c.isBlank()) {
+				cmd.add(c);
+			}
+		}
 
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		// NÃO unifica stderr no texto reconhecido: o tesseract emite avisos
@@ -210,13 +321,17 @@ public class OcrService {
 	}
 
 	private BufferedImage ampliarSeNecessario(BufferedImage cinza) {
+		return ampliarAte(cinza, EIXO_MENOR_MINIMO);
+	}
+
+	private BufferedImage ampliarAte(BufferedImage cinza, int eixoMinimo) {
 		int w = cinza.getWidth();
 		int h = cinza.getHeight();
 		int menor = Math.min(w, h);
-		if (menor >= EIXO_MENOR_MINIMO) {
+		if (menor >= eixoMinimo) {
 			return cinza;
 		}
-		double escala = (double) EIXO_MENOR_MINIMO / menor;
+		double escala = (double) eixoMinimo / menor;
 		int nw = Math.max(1, (int) Math.round(w * escala));
 		int nh = Math.max(1, (int) Math.round(h * escala));
 		int maior = Math.max(nw, nh);
@@ -235,5 +350,39 @@ public class OcrService {
 			g.dispose();
 		}
 		return ampliada;
+	}
+
+	private static int tentarInt(String v, int padrao) {
+		if (v == null || v.isBlank()) {
+			return padrao;
+		}
+		try {
+			return Integer.parseInt(v.trim());
+		} catch (NumberFormatException ex) {
+			return padrao;
+		}
+	}
+
+	private static double tentarDouble(String v, double padrao) {
+		if (v == null || v.isBlank()) {
+			return padrao;
+		}
+		try {
+			return Double.parseDouble(v.trim());
+		} catch (NumberFormatException ex) {
+			return padrao;
+		}
+	}
+
+	/** Uma palavra reconhecida pelo OCR com sua posição (caixa delimitadora). */
+	public record PalavraOcr(String texto, int left, int top, int width, int height, double confianca) {
+	}
+
+	/** Uma linha visual do OCR (conjunto de palavras) com a posição vertical do topo. */
+	public record LinhaOcr(int topo, List<PalavraOcr> palavras) {
+	}
+
+	/** Resultado do OCR espacial: linhas de palavras + dimensões da imagem usada. */
+	public record LeituraEspacial(int largura, int altura, List<LinhaOcr> linhas) {
 	}
 }

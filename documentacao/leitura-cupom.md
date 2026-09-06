@@ -23,15 +23,27 @@ POST /api/cupons/ler (multipart: arquivo)
    ├─ XML com itens → prévia (alta confiança)
    └─ falha/fiscal indisponível → 3 (OCR)   ← nunca bloqueia
         ↓
-3. OcrService → tesseract do sistema (idioma "por")
-   ├─ prepara a imagem (tons de cinza + contraste + ampliação)
-   └─ roda com --psm 6 e --psm 4 e escolhe o melhor texto
+3. OcrService → tesseract do sistema (idioma "por"), **em duas frentes**:
+   ├─ textual: prepara a imagem e roda com --psm 6 e --psm 4 (escolhe o melhor)
+   └─ espacial: prepara com ampliação p/ 1800px de eixo maior e roda --psm 6
+      com saída TSV (palavra + coordenada) → se recuperar a tabela, vence o texto
         ↓
 4. CupomParser → interpreta o texto e extrai itens (qtd, preço)
-   └─ classifica cada linha com pontuação de confiança:
-      - descarta lixo de OCR, tributos, totais, cabeçalho/rodapé
-      - aceita apenas linhas com estrutura de produto (nome + qtd + preço)
-      - suporte a EAN na linha, "2 UN", quantidade inteira e decimal BR
+   └─ caminho espacial (interpretarTabela/LeituraEspacial):
+      - agrupa as palavras do TSV por linha (block/par/line) e lê por COLUNAS
+        relativas à largura da imagem: código ≤0.20 L · descrição 0.14–0.56 L ·
+        qtd 0.44–0.55 L · unidade 0.50–0.66 L · vl.unit 0.62–0.72 L ·
+        vl.total 0.72–0.92 L (fragmentos fiscais à esquerda caem fora → ignorados)
+      - número de tabela só se casar inteiro com \d{1,3}[.,]\d{1,3} (exclui "189");
+        valida qtd × vl.unit ≈ vl.total e calcula confiança da linha
+      - linha só-descrição vira "pendente" p/ receber os números da linha seguinte
+        (nunca casa produtos de linhas diferentes); números sem descrição acima só
+        anexam se estiverem próximos verticalmente
+      - descarta cabeçalho de tabela e encerra a área ao ver totais/pagamento/
+        tributos/rodapé — mas só depois que a tabela de itens começou (o topo do
+        cupom traz "DOCUMENTO AUXILIAR DE CONSUMIDOR ELETRÔNICO")
+   └─ se nada saiu do espacial, cai para o classificador textual (linha por linha,
+      com pontuação de confiança, aceita apenas estrutura de produto)
         ↓
 Resposta (CupomLeituraDTO): estabelecimento, data, itens, fonte, baixaConfianca
    └─ cada item traz um campo `confianca` (0.0–1.0); OCR com item
@@ -52,8 +64,8 @@ a prévia; a confirmação da entrada reutiliza o fluxo existente
 | `CupomService` | Orquestra QR → NFC-e → OCR → parser |
 | `QrCodeReader` | Detecta QR Code na imagem (ZXing) |
 | `NfceReader` | Consulta a URL da NFC-e e tenta extrair XML (isolado; falha → OCR) |
-| `OcrService` | OCR do texto da imagem (binário `tesseract` via ProcessBuilder); prepara a imagem (tons de cinza, contraste, ampliação) e escolhe entre `--psm 6`/`--psm 4` o melhor texto |
-| `CupomParser` | Interpreta o texto do OCR → itens/estabelecimento/data. Cada linha é **classificada** (não é "qualquer linha com número"): pontuação de confiança, rejeição de lixo de OCR, tributos/totais/cabeçalho/rodapé, EAN, "2 UN" e quantidade+preço BR |
+| `OcrService` | OCR do texto da imagem (binário `tesseract` via ProcessBuilder); prepara a imagem (tons de cinza, contraste, ampliação) e escolhe entre `--psm 6`/`--psm 4` o melhor texto; **`lerEspacial`** roda com saída TSV e devolve `LinhaOcr`/`LeituraEspacial` (palavras com posição) |
+| `CupomParser` | Interpreta o texto do OCR → itens/estabelecimento/data. **Caminho espacial** (`interpretarTabela`): reconstroi a tabela por colunas relativas, com estado de linha pendente (descrição / números), stop de totais-rodapé e validação `qtd × unit ≈ total`; **fallback textual** (`interpretar`): cada linha é **classificada** com pontuação de confiança, rejeitando lixo de OCR, tributos/totais/cabeçalho/rodapé, EAN, "2 UN" e quantidade+preço BR |
 | `CupomLeituraDTO` / `ItemCupomLeituraDTO` | Prévia (resposta da API); cada item inclui `confianca` |
 
 Endpoint: `POST /api/cupons/ler` — `multipart/form-data`, campo `arquivo` (imagem).
@@ -117,5 +129,10 @@ cd backend && mvn -q -DskipTests package
   com `baixaConfianca=true` para o usuário revisar.
 - O parser cobre formatos brasileiros comuns (nome + quantidade + preço BR),
   com EAN e unidade ("2 UN"); exige ao menos quantidade positiva e preço real.
+- Linha com nome legível mas números ilegíveis (ou reversa) pode virar item
+  parcial ou "pendente" abandonado — revisar a prévia.
 - Linhas que não pareçam produto (lixo de OCR, tributos, totais, rodapé) são
-  **descartadas** na classificação — não viram itens de estoque.
+  **descartadas** na leitura — não viram itens de estoque. No caminho espacial,
+  os encerradores fracos ("consumidor", "pagamento", "valor de total" etc.) só
+  valem depois que a tabela de itens começou, para não quebrar no cabeçalho do
+  cupom ("DOCUMENTO AUXILIAR DE CONSUMIDOR ELETRÔNICO").

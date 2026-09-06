@@ -15,6 +15,12 @@ public class ItemCupomLeituraDTO {
 
 	private String descricao;
 
+	/**
+	 * Código do produto detectado (EAN/GTIN ou código interno do cupom), quando
+	 * o OCR espacial consegue ler a coluna de código. Pode ser {@code null}.
+	 */
+	private String codigo;
+
 	private BigDecimal quantidade;
 
 	private BigDecimal precoUnitario;

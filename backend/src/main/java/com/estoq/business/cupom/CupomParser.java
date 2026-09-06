@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -129,6 +130,490 @@ public class CupomParser {
 		dto.setItens(itens);
 		dto.setFonte("OCR");
 		return dto;
+	}
+
+	// ------------------------------------------------------------------ interpretar espacial
+
+	/**
+	 * Posições relativas das colunas da tabela do cupom (fração da largura da
+	 * imagem usada no OCR). Detectadas a partir de um cupom real:
+	 * CÓDIGO ≈ 0,04·L | DESCRIÇÃO ≈ 0,2–0,44·L | QTDE ≈ 0,48·L | UN ≈ 0,55·L |
+	 * VL.UNIT ≈ 0,64·L | VL.TOTAL ≈ 0,75·L. Linhas fiscais "coladas" à esquerda da
+	 * coluna de quantidade (≈0,3·L) são ignoradas por não caírem nas colunas de
+	 * valores.
+	 */
+	private static final double COL_CODIGO_FIM = 0.20;
+	private static final double COL_DESCRICAO_INI = 0.14;
+	private static final double COL_DESCRICAO_FIM = 0.56;
+	private static final double COL_QTDE_INI = 0.44;
+	private static final double COL_QTDE_FIM = 0.55;
+	private static final double COL_UNIDADE_INI = 0.50;
+	private static final double COL_UNIDADE_FIM = 0.66;
+	private static final double COL_VLUNIT_INI = 0.62;
+	private static final double COL_VLUNIT_FIM = 0.72;
+	private static final double COL_VLTOTAL_INI = 0.72;
+	private static final double COL_VLTOTAL_FIM = 0.92;
+
+	/** Número de coluna do cupom: inteiros + decimais (ex.: "3,99", "0,536", "21.07"). */
+	private static final Pattern DECIMAL_TABELA = Pattern.compile("\\d{1,3}[.,]\\d{1,3}");
+
+	/** Unidades de medida típicas da coluna UN do cupom (tolerando OCR: "KG"→"Ky"). */
+	private static final List<String> UNIDADES = List.of("KG", "LT", "ML", "G", "CX", "PCT", "DUZ", "DZ", "MD", "MT");
+
+	/**
+	 * Reconstrói os itens do cupom a partir das coordenadas das palavras no OCR
+	 * (TSV do tesseract). Cada linha é lida por coluna — código, descrição,
+	 * quantidade, unidade e preços — usando a posição relativa na imagem, e não o
+	 * texto corrido. Linhas fiscais e fragmentos que ficam fora das colunas de
+	 * valores são naturalmente ignorados.
+	 */
+	public CupomLeituraDTO interpretarTabela(OcrService.LeituraEspacial leitura) {
+		CupomLeituraDTO dto = new CupomLeituraDTO();
+		List<ItemCupomLeituraDTO> itens = new ArrayList<>();
+		int largura = leitura != null ? leitura.largura() : 0;
+		if (leitura == null || largura <= 0 || leitura.linhas().isEmpty()) {
+			dto.setFonte("OCR");
+			dto.setBaixaConfianca(true);
+			return dto;
+		}
+
+		String textoBruto = textoCompleto(leitura);
+		dto.setData(extrairData(textoBruto));
+		dto.setEstabelecimento(extrairEstabelecimento(textoBruto));
+
+		LinhaPendente pendente = null;
+		// Encerradores fracos ("consumidor", "pagamento", etc.) só valem DEPOIS que
+		// a tabela começou: no topo do cupom aparecem "DOCUMENTO AUXILIAR DE
+		// CONSUMIDOR ELETRÔNICO" e cabeçalhos que não podem encerrar a área.
+		boolean tabelaIniciada = false;
+		for (OcrService.LinhaOcr linha : leitura.linhas()) {
+			String textoLinha = textoDa(linha);
+			if (marcaFimDaSecaoDeItens(textoLinha)) {
+				log.debug("Tabela: encerrando área de itens ao ver linha \"{}\"", textoLinha);
+				break;
+			}
+			if (ehCabecalhoTabela(textoLinha)) {
+				log.debug("Tabela: cabeçalho ignorado \"{}\"", textoLinha);
+				tabelaIniciada = true;
+				pendente = null;
+				continue;
+			}
+
+			ColunasTabela c = colunasDaLinha(linha, largura);
+			if (tabelaIniciada && (ehEncerramentoDeSecao(textoLinha) || ehLinhaDeTotal(textoLinha, c))) {
+				log.debug("Tabela: encerrando área de itens ao ver linha \"{}\"", textoLinha);
+				break;
+			}
+			boolean temPreco = c.temPrecos();
+			boolean temDesc = !c.palavrasDescricao.isEmpty();
+			if (temDesc && temPreco) {
+				tabelaIniciada = true;
+				pendente = null;
+				ItemCupomLeituraDTO item = montarItem(c);
+				if (item != null) {
+					itens.add(item);
+					log.debug("Tabela: item \"{}\" q={} p={} conf={:.2f}",
+							item.getDescricao(), item.getQuantidade(), item.getPrecoUnitario(), item.getConfianca());
+				}
+			} else if (temDesc) {
+				// linha apenas com descrição: vira o item pendente para receber os
+				// números da próxima linha (tesseract separou descrição e valores).
+				// Se havia outra descrição pendente, ela é abandonada (produtos são
+				// linhas independentes; nunca cruzamos de um produto para outro).
+				pendente = new LinhaPendente(c, linha);
+			} else if (temPreco) {
+				// números sem descrição: se houver uma descrição pendente logo
+				// acima, são os números do item; senão é linha fiscal/rodapé
+				if (pendente != null && !pendente.numeros && proximas(pendente, linha)) {
+					pendente.receberNumeros(c);
+					ItemCupomLeituraDTO item = montarItem(pendente.comoColunas());
+					if (item != null) {
+						itens.add(item);
+						log.debug("Tabela: item \"{}\" q={} p={} conf={:.2f}",
+								item.getDescricao(), item.getQuantidade(), item.getPrecoUnitario(), item.getConfianca());
+					}
+					pendente = null;
+				}
+				// sem descrição pendente → fragmento fiscal / produto ilegível;
+				// nunca vira produto sozinho (pode ser "0,26 10,79 10,00")
+			}
+		}
+
+		dto.setItens(itens);
+		dto.setFonte("OCR");
+		return dto;
+	}
+
+	private String textoCompleto(OcrService.LeituraEspacial leitura) {
+		StringBuilder sb = new StringBuilder();
+		for (OcrService.LinhaOcr l : leitura.linhas()) {
+			sb.append(textoDa(l)).append('\n');
+		}
+		return sb.toString();
+	}
+
+	private String textoDa(OcrService.LinhaOcr linha) {
+		StringBuilder sb = new StringBuilder();
+		for (OcrService.PalavraOcr p : linha.palavras()) {
+			if (sb.length() > 0) {
+				sb.append(' ');
+			}
+			sb.append(p.texto());
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * Marca linhas do rodapé fiscal que encerram definitivamente o miolo de itens.
+	 * Complementa {@link #marcaFimDaSecaoDeItens} com termos típicos do cupom real.
+	 */
+	private boolean ehEncerramentoDeSecao(String texto) {
+		String minus = texto == null ? "" : texto.toLowerCase(Locale.ROOT);
+		return minus.contains("de itens")
+				|| minus.contains("valor total")
+				|| minus.contains("valor a pagar")
+				|| minus.contains("valor pago")
+				|| minus.contains("forma de pagamento")
+				|| minus.contains("pagamento")
+				|| minus.contains("tributos")
+				|| minus.contains("federal")
+				|| minus.contains("estadual")
+				|| minus.contains("municipal")
+				|| minus.contains("consumidor")
+				|| minus.contains("consulte")
+				|| minus.contains("qrcode")
+				|| minus.contains("chave de acesso")
+				|| minus.contains("obrigado")
+				|| minus.contains("volte")
+				|| PADRAO_CHAVE.matcher(minus).find();
+	}
+
+	private boolean ehLinhaDeTotal(String texto, ColunasTabela c) {
+		if (texto == null || texto.isBlank() || c == null) {
+			return false;
+		}
+		// linhas de produto têm quantidade/unidade — só total fiscal aparece só com
+		// o dígito final ("VALOR TOTAL R$ 69,48", lido como "Valor tora: R$ ...")
+		if (c.quantidade != null || c.unidade != null || !c.temPrecos()) {
+			return false;
+		}
+		String semIniciais = texto.toLowerCase(Locale.ROOT).replaceFirst("^[^a-zà-ú0-9]+", "");
+		return semIniciais.startsWith("valor") || semIniciais.startsWith("total")
+				|| semIniciais.startsWith("subtotal") || semIniciais.startsWith("troco");
+	}
+
+	/**
+	 * Cabeçalho de coluna da tabela ("CÓDIGO DESCRIÇÃO QTDE UN VL.UNIT VL.TOTAL"),
+	 * resiliente a OCR ("OTE IN UE.UNZT OL TOTA"). Pelo menos dois tokens de
+	 * cabeçalho para evitar descartar produto com palavra parecida no texto.
+	 */
+	private boolean ehCabecalhoTabela(String texto) {
+		if (texto == null || texto.isBlank()) {
+			return false;
+		}
+		int achados = 0;
+		String[] tokens = texto.toLowerCase(Locale.ROOT).split("[^a-zà-ú0-9]+");
+		for (String tok : tokens) {
+			if (tok.length() < 2) {
+				continue;
+			}
+			if ("qtd".equals(tok) || "qtde".equals(tok) || "quantidade".equals(tok) || "quant".equals(tok)
+					|| "descricao".equals(tok) || "desc".equals(tok) || "un".equals(tok) || "und".equals(tok)
+					|| "codigo".equals(tok) || "unit".equals(tok) || tok.startsWith("total") || tok.startsWith("tot")
+					|| tok.startsWith("vltotal") || tok.startsWith("vl")) {
+				achados++;
+			}
+		}
+		return achados >= 2;
+	}
+
+	private boolean proximas(LinhaPendente pendente, OcrService.LinhaOcr linha) {
+		int base = Math.max(pendente.altura, 12);
+		return linha.topo() - pendente.baixo <= base * 2;
+	}
+
+	/**
+	 * Lê uma linha do OCR por colunas (posição relativa à largura da imagem).
+	 * Números fora das colunas de valores (fragments fiscais à esquerda) são
+	 * simplesmente ignorados.
+	 */
+	private ColunasTabela colunasDaLinha(OcrService.LinhaOcr linha, int largura) {
+		ColunasTabela c = new ColunasTabela();
+		boolean[] consumidas = new boolean[linha.palavras().size()];
+		List<OcrService.PalavraOcr> palavras = linha.palavras();
+		for (int i = 0; i < palavras.size(); i++) {
+			OcrService.PalavraOcr p = palavras.get(i);
+			String tok = p.texto().trim();
+			if (tok.isEmpty()) {
+				continue;
+			}
+			double centro = centroDe(p, largura);
+			if (DECIMAL_TABELA.matcher(tok).matches()) {
+				BigDecimal v = numeroTabela(tok);
+				consumidas[i] = true;
+				if (v == null || v.signum() <= 0) {
+					continue;
+				}
+				if (centro >= COL_VLTOTAL_INI && centro <= COL_VLTOTAL_FIM) {
+					c.precoTotal = v;
+				} else if (centro >= COL_VLUNIT_INI && centro < COL_VLUNIT_FIM) {
+					c.precoUnitario = v;
+				} else if (centro >= COL_QTDE_INI && centro < COL_QTDE_FIM) {
+					c.quantidade = v;
+				}
+				continue;
+			}
+			if (centro >= COL_UNIDADE_INI && centro <= COL_UNIDADE_FIM && aceitarUnidade(tok)) {
+				if (c.unidade == null) {
+					c.unidade = normalizarUnidade(tok);
+					consumidas[i] = true;
+				}
+				continue;
+			}
+			if (centro <= COL_CODIGO_FIM && tok.matches("\\d{6,14}")) {
+				if (c.codigo == null) {
+					c.codigo = tok;
+					consumidas[i] = true;
+				}
+				continue;
+			}
+		}
+
+		// descrição: palavras com letras na faixa da coluna de descrição
+		for (int i = 0; i < palavras.size(); i++) {
+			if (consumidas[i]) {
+				continue;
+			}
+			OcrService.PalavraOcr p = palavras.get(i);
+			String tok = p.texto().trim();
+			if (tok.isEmpty()) {
+				continue;
+			}
+			double centro = centroDe(p, largura);
+			if (centro < COL_DESCRICAO_INI || centro > COL_DESCRICAO_FIM) {
+				continue;
+			}
+			if (!palavraDescricaoValida(tok)) {
+				continue;
+			}
+			c.palavrasDescricao.add(tok);
+		}
+		c.descricao = String.join(" ", c.palavrasDescricao).replaceAll("\\s+", " ").trim();
+		if (!c.descricao.isEmpty()) {
+			c.descricao = c.descricao.toUpperCase(Locale.ROOT);
+		}
+		return c;
+	}
+
+	private double centroDe(OcrService.PalavraOcr p, int largura) {
+		return (p.left() + p.width() / 2.0) / largura;
+	}
+
+	/**
+	 * Uma palavra da coluna de descrição precisa se parecer com NOME de produto,
+	 * não com fragmento fiscal/lixo de OCR: ao menos 2 letras, maioria de letras,
+	 * sem símbolos estruturais (parênteses, vírgulas, dois-pontos), e palavras
+	 * curtas (≤3 letras) precisam ser em caixa alta — fragmentos como "(00)",
+	 * "ot)", "aM", "ts", "0s:" não passam.
+	 */
+	private boolean palavraDescricaoValida(String tok) {
+		long letras = tok.chars().filter(Character::isLetter).count();
+		long digitos = tok.chars().filter(Character::isDigit).count();
+		if (letras < 2 || (double) letras / (letras + digitos) < 0.5) {
+			return false;
+		}
+		String s = tok.endsWith(".") ? tok.substring(0, tok.length() - 1) : tok;
+		if (!s.replaceAll("[A-Za-zÀ-Úà-ú0-9']", "").isEmpty()) {
+			return false;
+		}
+		String soLetras = tok.replaceAll("[^\\p{L}]", "");
+		if (soLetras.length() <= 3 && soLetras.chars().anyMatch(Character::isLowerCase)) {
+			return false;
+		}
+		return true;
+	}
+
+	private BigDecimal numeroTabela(String tok) {
+		try {
+			if (tok.contains(",") && !tok.contains(".")) {
+				return new BigDecimal(tok.replace(',', '.'));
+			}
+			if (tok.contains(".") && !tok.contains(",") && tok.length() - tok.indexOf('.') - 1 <= 3) {
+				return new BigDecimal(tok);
+			}
+		} catch (NumberFormatException ignored) {
+			// segue
+		}
+		return null;
+	}
+
+	private boolean aceitarUnidade(String tok) {
+		String norm = normalizarUnidade(tok);
+		if (norm.isEmpty() || norm.length() > 4) {
+			return false;
+		}
+		if ("UN".equals(norm) || "ON".equals(norm) || "UNI".equals(norm) || "UM".equals(norm)) {
+			return true;
+		}
+		for (String u : UNIDADES) {
+			if (correspondenciaFiscal(norm.toLowerCase(Locale.ROOT), u.toLowerCase(Locale.ROOT))) {
+				return true;
+			}
+		}
+		return norm.contains("UN") || norm.contains("KG");
+	}
+
+	private String normalizarUnidade(String tok) {
+		return tok.replaceAll("[^\\p{L}]", "").toUpperCase(Locale.ROOT);
+	}
+
+	/**
+	 * Monta o item a partir das colunas lidas. Quantidade padrão 1 quando a coluna
+	 * não foi reconhecida (comum com "1,000" lido como ruído); preço sempre existe.
+	 */
+	private ItemCupomLeituraDTO montarItem(ColunasTabela c) {
+		if (c.descricao == null || c.descricao.length() < 2) {
+			return null;
+		}
+		if (c.precoUnitario == null && c.precoTotal == null) {
+			return null;
+		}
+		BigDecimal qtd = c.quantidade;
+		if (qtd == null || qtd.signum() <= 0 || qtd.compareTo(new BigDecimal("99999")) > 0) {
+			qtd = BigDecimal.ONE;
+		}
+		BigDecimal vlUnit = c.precoUnitario;
+		BigDecimal vlTotal = c.precoTotal;
+		if (vlUnit != null && vlTotal == null) {
+			vlTotal = vlUnit.multiply(qtd);
+		}
+		if (vlUnit == null && vlTotal != null) {
+			vlUnit = vlTotal.divide(qtd, 4, RoundingMode.HALF_UP);
+		}
+		double conf = calcularConfiancaTabela(c, qtd, vlUnit, vlTotal);
+		if (conf < LIMIAR_DESCARTAR) {
+			log.debug("Tabela: item descartado (conf {:.2f}): \"{}\"", conf, c.descricao);
+			return null;
+		}
+		ItemCupomLeituraDTO item = new ItemCupomLeituraDTO(c.descricao, qtd, vlUnit, vlTotal);
+		item.setCodigo(c.codigo);
+		item.setConfianca(conf);
+		return item;
+	}
+
+	private double calcularConfiancaTabela(ColunasTabela c, BigDecimal qtd, BigDecimal vlUnit, BigDecimal vlTotal) {
+		double score = 0.45;
+		if (c.codigo != null) {
+			score += 0.10;
+		}
+		if (c.descricao.chars().filter(Character::isLetter).count() >= 5) {
+			score += 0.20;
+		}
+		if (c.unidade != null) {
+			score += 0.10;
+		}
+		if (c.quantidade != null && c.quantidade.signum() > 0) {
+			score += 0.10;
+		}
+		if (vlUnit != null && vlTotal != null) {
+			score += matematicaOk(qtd, vlUnit, vlTotal) ? 0.10 : -0.20;
+		} else if (vlUnit != null || vlTotal != null) {
+			score += 0.05;
+		}
+		score *= avaliarQualidadeTexto(c.descricao);
+		if (contemPalavraFiscal(c.descricao.toLowerCase(Locale.ROOT))) {
+			score -= 0.5;
+		}
+		return Math.max(0.0, Math.min(1.0, score));
+	}
+
+	/** Valida qtd × vl.unit ≈ vl.total (tolerância de arredondamento do cupom). */
+	private boolean matematicaOk(BigDecimal qtd, BigDecimal vlUnit, BigDecimal vlTotal) {
+		if (qtd == null || vlUnit == null || vlTotal == null || qtd.signum() <= 0) {
+			return false;
+		}
+		BigDecimal esperado = vlUnit.multiply(qtd);
+		BigDecimal diferenca = esperado.subtract(vlTotal).abs();
+		BigDecimal base = vlTotal.abs().max(BigDecimal.ONE);
+		try {
+			return diferenca.divide(base, 4, RoundingMode.HALF_UP).compareTo(new BigDecimal("0.06")) <= 0;
+		} catch (ArithmeticException ex) {
+			return false;
+		}
+	}
+
+	// ------------------------------------------------------------------ classes espaciais
+
+	/** Colunas lidas de uma linha da tabela do OCR espacial. */
+	private static final class ColunasTabela {
+		String codigo;
+		String unidade;
+		BigDecimal quantidade;
+		BigDecimal precoUnitario;
+		BigDecimal precoTotal;
+		final List<String> palavrasDescricao = new ArrayList<>();
+		String descricao;
+
+		boolean temPrecos() {
+			return precoUnitario != null || precoTotal != null || (quantidade != null && quantidade.signum() > 0);
+		}
+	}
+
+	/** Descrição aguardando os números da linha seguinte (item partido / contínuo). */
+	private static final class LinhaPendente {
+		final int topo;
+		final int baixo;
+		final int altura;
+		final ColunasTabela colunas = new ColunasTabela();
+		boolean numeros;
+
+		LinhaPendente(ColunasTabela c, OcrService.LinhaOcr linha) {
+			this.topo = linha.topo();
+			this.baixo = linha.palavras().stream()
+					.mapToInt(p -> p.top() + p.height())
+					.max().orElse(linha.topo() + 20);
+			this.altura = linha.palavras().stream()
+					.mapToInt(OcrService.PalavraOcr::height)
+					.max().orElse(16);
+			if (c.codigo != null) {
+				colunas.codigo = c.codigo;
+			}
+			colunas.palavrasDescricao.addAll(c.palavrasDescricao);
+			colunas.descricao = c.descricao;
+		}
+
+		void anexar(ColunasTabela c) {
+			if (colunas.codigo == null) {
+				colunas.codigo = c.codigo;
+			}
+			for (String p : c.palavrasDescricao) {
+				if (!colunas.palavrasDescricao.contains(p)) {
+					colunas.palavrasDescricao.add(p);
+				}
+			}
+			colunas.descricao = String.join(" ", colunas.palavrasDescricao).replaceAll("\\s+", " ").trim()
+					.toUpperCase(Locale.ROOT);
+		}
+
+		void receberNumeros(ColunasTabela c) {
+			if (c.quantidade != null) {
+				colunas.quantidade = c.quantidade;
+			}
+			if (c.precoUnitario != null) {
+				colunas.precoUnitario = c.precoUnitario;
+			}
+			if (c.precoTotal != null) {
+				colunas.precoTotal = c.precoTotal;
+			}
+			if (c.unidade != null) {
+				colunas.unidade = c.unidade;
+			}
+			numeros = true;
+		}
+
+		ColunasTabela comoColunas() {
+			return colunas;
+		}
 	}
 
 	// -------------------------------------------------------------- classificação

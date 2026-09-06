@@ -301,6 +301,7 @@ export type TipoRelatorio = "ESTOQUE_ATUAL" | "PROXIMO_VENCIMENTO" | "VENCIDOS" 
 
 export interface ItemCupomLeituraDTO {
   descricao: string;
+  codigo: string | null;
   quantidade: number;
   precoUnitario: number | null;
   precoTotal: number | null;
