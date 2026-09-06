@@ -47,8 +47,9 @@ export default function MudarPin() {
             </p>
           </div>
           <div className="field">
-            <label>Novo PIN (6 dígitos)</label>
+            <label htmlFor="novo-pin">Novo PIN (6 dígitos)</label>
             <input
+              id="novo-pin"
               type="password"
               inputMode="numeric"
               maxLength={6}
@@ -58,8 +59,9 @@ export default function MudarPin() {
             />
           </div>
           <div className="field">
-            <label>Confirmar novo PIN</label>
+            <label htmlFor="confirmar-pin">Confirmar novo PIN</label>
             <input
+              id="confirmar-pin"
               type="password"
               inputMode="numeric"
               maxLength={6}
