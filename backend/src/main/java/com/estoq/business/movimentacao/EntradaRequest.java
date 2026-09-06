@@ -14,6 +14,7 @@ public class EntradaRequest {
 	private BigDecimal quantidade;
 	private BigDecimal valorTotalPago;
 	private String unidadeCompra;
+	private BigDecimal fatorConversao;
 	private LocalDate dataValidade;
 	private String observacao;
 }

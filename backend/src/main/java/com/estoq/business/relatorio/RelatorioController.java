@@ -7,6 +7,7 @@ import com.estoq.core.exceptions.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,6 +55,20 @@ public class RelatorioController {
 	@GetMapping("/historico")
 	public ResponseEntity<List<RelatorioModel>> historico() {
 		return ResponseEntity.ok(relatorioService.historico());
+	}
+
+	@PostMapping(value = "/pdf/{tipo}", produces = MediaType.APPLICATION_PDF_VALUE)
+	public ResponseEntity<byte[]> pdfTipo(@PathVariable String tipo,
+			@RequestParam(required = false) LocalDate inicio, @RequestParam(required = false) LocalDate fim) {
+		return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio.pdf")
+				.body(relatorioService.gerarPdfTipo(resolverTipo(tipo), inicio, fim));
+	}
+
+	@PostMapping(value = "/cmv/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+	public ResponseEntity<byte[]> pdfCmv(@RequestParam(required = false) LocalDate inicio,
+			@RequestParam(required = false) LocalDate fim, @RequestParam(required = false) BigDecimal vendas) {
+		return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=cmv.pdf")
+				.body(relatorioService.gerarPdfCmv(inicio, fim, vendas));
 	}
 
 	private TipoRelatorio resolverTipo(String valor) {

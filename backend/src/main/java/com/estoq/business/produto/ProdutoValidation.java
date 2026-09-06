@@ -21,6 +21,9 @@ public class ProdutoValidation extends GenericValidation<ProdutoModel, IProdutoR
 		if (entity.getEstoqueMinimo() == null || entity.getEstoqueMinimo().signum() < 0) {
 			throw new FieldValidationException("estoqueMinimo", "Estoque mínimo deve ser maior ou igual a zero.");
 		}
+		if (entity.getPrecoUnitario() != null && entity.getPrecoUnitario().signum() < 0) {
+			throw new FieldValidationException("precoUnitario", "Preço unitário deve ser maior ou igual a zero.");
+		}
 	}
 
 	@Override

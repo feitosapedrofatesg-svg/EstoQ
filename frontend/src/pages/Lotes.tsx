@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { api, carregarProdutos, formatDate, formatMoney, formatQtd } from "../api";
 import { useAuth } from "../auth";
 import { Badge, Modal, useAsyncData } from "../components";
+import { ProductPicker, QuantityInput, useToast, TableSkeleton } from "../ux";
 import type { LoteView, Produto, ProdutoAbertoView } from "../types";
 
 function statusLote(l: LoteView) {
@@ -13,6 +14,7 @@ function statusLote(l: LoteView) {
 export default function Lotes() {
   const { auth } = useAuth();
   const admin = auth?.perfil === "ADMIN";
+  const { toast } = useToast();
 
   const [refresh, setRefresh] = useState(0);
   const [busca, setBusca] = useState("");
@@ -27,6 +29,10 @@ export default function Lotes() {
   const [abrirProduto, setAbrirProduto] = useState("");
   const [abrirQtd, setAbrirQtd] = useState("1");
   const [abrirLote, setAbrirLote] = useState("");
+
+  const [editandoVal, setEditandoVal] = useState<LoteView | null>(null);
+  const [validadeTemp, setValidadeTemp] = useState("");
+  const [salvandoVal, setSalvandoVal] = useState(false);
 
   const { data: lotes, loading: loadingLotes } = useAsyncData<LoteView[]>(() => api.get("/api/lotes"), [refresh]);
   const { data: abertos } = useAsyncData<ProdutoAbertoView[]>(() => api.get("/api/produtos-abertos"), [refresh]);
@@ -60,10 +66,30 @@ export default function Lotes() {
       setSobraDe(null);
       setQtdSobra("");
       setRefresh((k) => k + 1);
+      toast("Sobra registrada e devolvida ao estoque.");
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao registrar sobra.");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function salvarValidade() {
+    if (!editandoVal) return;
+    setSalvandoVal(true);
+    setErro("");
+    try {
+      await api.put(`/api/lotes/${editandoVal.id}/validade`, {
+        dataValidade: validadeTemp || null,
+      });
+      setEditandoVal(null);
+      setValidadeTemp("");
+      setRefresh((k) => k + 1);
+      toast("Validade do lote atualizada.");
+    } catch (e: unknown) {
+      setErro((e as Error).message || "Erro ao salvar validade.");
+    } finally {
+      setSalvandoVal(false);
     }
   }
 
@@ -81,6 +107,7 @@ export default function Lotes() {
       setAbrirQtd("1");
       setAbrirLote("");
       setRefresh((k) => k + 1);
+      toast("Embalagem aberta e registrada no sistema.");
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao abrir embalagem.");
     } finally {
@@ -116,7 +143,7 @@ export default function Lotes() {
       </div>
 
       {loadingLotes ? (
-        <div className="muted">Carregando…</div>
+        <TableSkeleton linhas={6} colunas={9} />
       ) : filtrados.length === 0 ? (
         <div className="empty">Nenhum lote encontrado.</div>
       ) : (
@@ -145,7 +172,22 @@ export default function Lotes() {
                     <td className="num">{formatQtd(l.quantidadeAtual)} {l.unidadeMedida}</td>
                     <td className="num">{formatQtd(l.quantidadeInicial)}</td>
                     <td>{formatDate(l.dataEntrada)}</td>
-                    <td>{formatDate(l.dataValidade)}</td>
+                    <td>
+                      {formatDate(l.dataValidade)}
+                      {admin && (
+                        <button
+                          className="btn small"
+                          style={{ marginLeft: 8 }}
+                          onClick={() => {
+                            setEditandoVal(l);
+                            setValidadeTemp(l.dataValidade || "");
+                            setErro("");
+                          }}
+                        >
+                          Editar
+                        </button>
+                      )}
+                    </td>
                     <td className="num">{formatMoney(l.precoUnitario)}</td>
                     <td className="num">{l.diasParaVencimento}</td>
                     <td>
@@ -211,7 +253,13 @@ export default function Lotes() {
         <Modal title={`Registrar sobra — ${sobraDe.produtoNome}`} onClose={() => { setSobraDe(null); setErro(""); }}>
           <div className="field">
             <label>Quantidade restante a devolver</label>
-            <input type="number" min="0" step="1" value={qtdSobra} onChange={(e) => setQtdSobra(e.target.value)} />
+            <QuantityInput
+              value={qtdSobra}
+              onChange={setQtdSobra}
+              min={0}
+              step={1}
+              unidade={sobraDe?.unidadeMedida}
+            />
           </div>
           {erro && <div className="form-error">{erro}</div>}
           <div className="form-actions">
@@ -223,21 +271,51 @@ export default function Lotes() {
         </Modal>
       )}
 
+      {editandoVal && (
+        <Modal
+          title={`Editar validade — ${editandoVal.produtoNome} (${editandoVal.codigo})`}
+          onClose={() => { setEditandoVal(null); setErro(""); }}
+        >
+          <div className="field">
+            <label>Validade</label>
+            <input
+              type="date"
+              value={validadeTemp}
+              onChange={(e) => setValidadeTemp(e.target.value)}
+            />
+            <span className="muted small">Deixe vazio para remover a validade do lote.</span>
+          </div>
+          {erro && <div className="form-error">{erro}</div>}
+          <div className="form-actions">
+            <button className="btn" onClick={() => setEditandoVal(null)}>Cancelar</button>
+            <button className="btn primary" disabled={salvandoVal} onClick={salvarValidade}>
+              {salvandoVal ? "Salvando…" : "Salvar validade"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {abrindo && (
         <Modal title="Abrir embalagem" onClose={() => { setAbrindo(false); setErro(""); }}>
           <div className="form-row">
             <div className="field">
               <label>Produto *</label>
-              <select value={abrirProduto} onChange={(e) => { setAbrirProduto(e.target.value); setAbrirLote(""); }}>
-                <option value="">Selecione…</option>
-                {(produtos || []).map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
+              <ProductPicker
+                produtos={produtos || []}
+                value={abrirProduto}
+                placeholder="Buscar produto…"
+                onChange={(id) => { setAbrirProduto(id); setAbrirLote(""); }}
+              />
             </div>
             <div className="field">
               <label>Quantidade</label>
-              <input type="number" min="0" step="1" value={abrirQtd} onChange={(e) => setAbrirQtd(e.target.value)} />
+              <QuantityInput
+                value={abrirQtd}
+                onChange={setAbrirQtd}
+                min={0}
+                step={1}
+                unidade={(produtos || []).find((p) => p.id === abrirProduto)?.unidadeMedida}
+              />
             </div>
             <div className="field" style={{ gridColumn: "span 2" }}>
               <label>Lote (opcional)</label>

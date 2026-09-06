@@ -1,5 +1,6 @@
 package com.estoq.business.produto;
 
+import com.estoq.business.auditoria.AuditService;
 import com.estoq.business.lote.ILoteRepository;
 import com.estoq.business.parametro.IParametroEstoqueRepository;
 import com.estoq.business.parametro.ParametroEstoqueModel;
@@ -27,6 +28,9 @@ public class ProdutoService extends GenericService<ProdutoModel, IProdutoReposit
 
 	@Autowired
 	private IParametroEstoqueRepository parametroRepository;
+
+	@Autowired
+	private AuditService auditService;
 
 	@Override
 	protected void beforeInsert(ProdutoModel entity) {
@@ -64,6 +68,24 @@ public class ProdutoService extends GenericService<ProdutoModel, IProdutoReposit
 		saved.setEstoqueMinimo(minimo);
 		atualizarParametro(saved);
 		return saved;
+	}
+
+	@Override
+	protected void afterInsert(ProdutoModel saved, ProdutoModel original) {
+		auditService.registrar("CRIACAO", "PRODUTO", String.valueOf(saved.getId()),
+				"Produto criado: " + saved.getNome(), null);
+	}
+
+	@Override
+	protected void afterUpdate(ProdutoModel saved, ProdutoModel original) {
+		auditService.registrar("ALTERACAO", "PRODUTO", String.valueOf(saved.getId()),
+				"Produto atualizado: " + saved.getNome(), null);
+	}
+
+	@Override
+	protected void afterDelete(ProdutoModel entity) {
+		auditService.registrar("EXCLUSAO", "PRODUTO", String.valueOf(entity.getId()),
+				"Produto removido: " + entity.getNome(), null);
 	}
 
 	@Override

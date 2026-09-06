@@ -43,6 +43,7 @@ public class MovimentacaoController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(movimentacaoService.registrarEntrada(
 				req.getProdutoId(), usuario, req.getQuantidade(), req.getValorTotalPago(),
 				req.getUnidadeCompra() == null ? null : produtoAdapter.resolverUnidade(req.getUnidadeCompra()),
+				req.getFatorConversao(),
 				req.getDataValidade(), req.getObservacao()));
 	}
 
@@ -76,8 +77,9 @@ public class MovimentacaoController {
 	}
 
 	@PostMapping("/{id}/reverter")
-	public ResponseEntity<Object> reverter(@PathVariable UUID id) {
-		movimentacaoService.reverterMovimentacao(id);
+	public ResponseEntity<Object> reverter(@PathVariable UUID id,
+			@RequestAttribute("usuario_logado") UsuarioModel usuario) {
+		movimentacaoService.reverterMovimentacao(id, usuario);
 		return ResponseEntity.ok("Movimentação revertida com sucesso.");
 	}
 

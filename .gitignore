@@ -25,6 +25,19 @@ backend/.github/
 distribuicao/estoq.jar
 distribuicao/dados/
 
+# === Dados de produção e backups (NUNCA versionar) ===
+dados/
+*.mv.db
+*.lock.db
+*.trace.db
+distribuicao/backups/
+distribuicao/dados_backup*/
+distribuicao/*.tgz
+
+# === Artefatos de empacotamento (.deb / instalador / stage) ===
+dist/
+entregaveis/
+
 # === Environment ===
 .env
 .env.*

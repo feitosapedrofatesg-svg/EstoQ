@@ -1,12 +1,9 @@
 package com.estoq.business.relatorio;
 
 import com.estoq.business.alerta.AlertaView;
-import com.estoq.business.relatorio.CMVItemDTO;
-import com.estoq.business.relatorio.CMVReportDTO;
-import com.estoq.business.relatorio.DashboardDTO;
-import com.estoq.business.relatorio.RelatorioLinhaDTO;
-import com.estoq.business.relatorio.RelatorioViewDTO;
+import com.estoq.business.auditoria.AuditService;
 import com.estoq.business.balanco.ConferenciaService;
+import com.estoq.business.configuracao.ConfiguracaoService;
 import com.estoq.business.lote.ILoteRepository;
 import com.estoq.business.lote.LoteModel;
 import com.estoq.business.movimentacao.ConsumoModel;
@@ -21,9 +18,21 @@ import com.estoq.business.produto.IProdutoRepository;
 import com.estoq.business.produto.ProdutoModel;
 import com.estoq.business.produtoaberto.IProdutoAbertoRepository;
 import com.estoq.business.produtoaberto.ProdutoAbertoModel;
+import com.estoq.business.relatorio.CMVItemDTO;
+import com.estoq.business.relatorio.CMVReportDTO;
+import com.estoq.business.relatorio.DashboardDTO;
+import com.estoq.business.relatorio.RelatorioLinhaDTO;
+import com.estoq.business.relatorio.RelatorioViewDTO;
+import com.estoq.business.sessao.SessaoService;
+import com.estoq.business.sistema.BackupService;
+import com.estoq.business.sistema.BackupStatus;
+import com.estoq.business.venda.VendaMesService;
 import com.estoq.core.helpers.NumeroUtil;
+import com.estoq.core.exceptions.BusinessException;
+import com.estoq.core.reports.PdfReporter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +82,21 @@ public class RelatorioService {
 	@Autowired
 	private com.estoq.business.alerta.AlertaService alertaService;
 
+	@Autowired
+	private VendaMesService vendaMesService;
+
+	@Autowired
+	private BackupService backupService;
+
+	@Autowired
+	private ConfiguracaoService configuracaoService;
+
+	@Autowired
+	private AuditService auditService;
+
+	@Autowired
+	private SessaoService sessaoService;
+
 	// ------------------------------------------------------------ CMV
 
 	/**
@@ -88,7 +112,7 @@ public class RelatorioService {
 		CMVReportDTO rel = new CMVReportDTO();
 		rel.setDataInicio(ini);
 		rel.setDataFim(f);
-		rel.setVendas(NumeroUtil.s(vendas));
+		rel.setVendas(resolverVendas(ini, f, vendas));
 		rel.setMetaCmv(META_CMV);
 
 		LocalDateTime iniDt = ini.atStartOfDay();
@@ -165,7 +189,73 @@ public class RelatorioService {
 		if (rel.getVendas().signum() > 0) {
 			rel.setCmv(NumeroUtil.percentual(rel.getTotalGeral(), rel.getVendas()));
 		}
+		definirAvaliacao(rel);
 		return rel;
+	}
+
+	private void definirAvaliacao(CMVReportDTO rel) {
+		BigDecimal vendas = NumeroUtil.s(rel.getVendas());
+		BigDecimal meta = NumeroUtil.s(rel.getMetaCmv());
+		BigDecimal pct = NumeroUtil.s(rel.getCmv());
+		BigDecimal despPct = NumeroUtil.percentual(rel.getTotalDesperdicio(), rel.getTotalGeral());
+
+		String despSufixo = despPct.compareTo(new BigDecimal("0.10")) > 0
+				? " Desperdício responde por " + pctStr(despPct) + " do CMV."
+				: "";
+
+		if (vendas.signum() <= 0) {
+			rel.setAvaliacao("SEM_VENDAS");
+			rel.setMensagem("SEM VENDAS — informe as vendas (R$) do período para calcular o percentual de CMV.");
+			return;
+		}
+		if (meta.signum() <= 0) {
+			rel.setAvaliacao("ATENCAO");
+			rel.setMensagem("ATENÇÃO — não há meta de CMV definida para comparar. Calcule o CMV ("
+					+ pctStr(pct) + ") e defina uma meta de controle.");
+			return;
+		}
+
+		String base = "CMV em " + pctStr(pct) + " (meta: " + pctStr(meta) + ").";
+		if (pct.compareTo(meta.multiply(new BigDecimal("0.90"))) <= 0) {
+			rel.setAvaliacao("EXCELENTE");
+			rel.setMensagem("EXCELENTE — " + base + " Bem abaixo da meta; estoque e compras sob controle."
+					+ despSufixo);
+		} else if (pct.compareTo(meta) <= 0) {
+			rel.setAvaliacao("DENTRO_DA_META");
+			rel.setMensagem("DENTRO DA META — " + base + " Resultado aceitável; siga acompanhando consumo e perdas."
+					+ despSufixo);
+		} else if (pct.compareTo(meta.multiply(new BigDecimal("1.15"))) <= 0) {
+			rel.setAvaliacao("ATENCAO");
+			rel.setMensagem("ATENÇÃO — " + base + " Acima da meta; revise compras, precificação e desperdícios."
+					+ despSufixo);
+		} else {
+			rel.setAvaliacao("CRITICO");
+			rel.setMensagem("CRÍTICO — " + base
+					+ " Muito acima da meta; ação imediata em compras, preços, consumo e perdas." + despSufixo);
+		}
+	}
+
+	private String pctStr(BigDecimal frac) {
+		return NumeroUtil.money(NumeroUtil.multiplica(NumeroUtil.s(frac), BigDecimal.valueOf(100)))
+				.stripTrailingZeros().toPlainString() + "%";
+	}
+
+	/**
+	 * Vendas do período. Quando o parâmetro não vem preenchido e o período é um
+	 * mês completo, usa o valor persistido em /api/vendas.
+	 */
+	private BigDecimal resolverVendas(LocalDate ini, LocalDate fim, BigDecimal vendas) {
+		if (vendas != null) {
+			return NumeroUtil.money(vendas);
+		}
+		if (ini == null || fim == null) {
+			return BigDecimal.ZERO;
+		}
+		YearMonth ym = YearMonth.from(ini);
+		if (!ym.atDay(1).equals(ini) || !ym.atEndOfMonth().equals(fim)) {
+			return BigDecimal.ZERO;
+		}
+		return NumeroUtil.money(vendaMesService.obter(ini.getYear(), ini.getMonthValue()).getValorVendas());
 	}
 
 	private CMVItemDTO montarItem(ProdutoModel p) {
@@ -191,14 +281,7 @@ public class RelatorioService {
 		LocalDate ini = inicio == null ? YearMonth.now().atDay(1) : inicio;
 		LocalDate f = fim == null ? LocalDate.now() : fim;
 
-		List<RelatorioLinhaDTO> linhas = switch (tipo) {
-			case ESTOQUE_ATUAL -> estoqueAtual();
-			case PROXIMO_VENCIMENTO -> vencendo(f);
-			case VENCIDOS -> vencidos();
-			case PRODUTOS_ABERTOS -> produtosAbertos();
-			case DESPERDICIO -> desperdicios(ini, f);
-			case CONSUMO_MEDIO -> consumoMedio(ini, f);
-		};
+		List<RelatorioLinhaDTO> linhas = montarLinhas(tipo, ini, f);
 
 		RelatorioModel r = new RelatorioModel();
 		r.setTipo(tipo);
@@ -217,6 +300,17 @@ public class RelatorioService {
 		view.setLinhasGeradas(linhas.size());
 		view.setLinhas(linhas);
 		return view;
+	}
+
+	private List<RelatorioLinhaDTO> montarLinhas(TipoRelatorio tipo, LocalDate ini, LocalDate f) {
+		return switch (tipo) {
+			case ESTOQUE_ATUAL -> estoqueAtual();
+			case PROXIMO_VENCIMENTO -> vencendo(f);
+			case VENCIDOS -> vencidos();
+			case PRODUTOS_ABERTOS -> produtosAbertos();
+			case DESPERDICIO -> desperdicios(ini, f);
+			case CONSUMO_MEDIO -> consumoMedio(ini, f);
+		};
 	}
 
 	private List<RelatorioLinhaDTO> estoqueAtual() {
@@ -352,6 +446,94 @@ public class RelatorioService {
 		return linhas;
 	}
 
+	// ------------------------------------------------------------ PDF
+
+	/** Gera o PDF de um relatório por tipo (sem persistir novo registro). */
+	public byte[] gerarPdfTipo(TipoRelatorio tipo, LocalDate inicio, LocalDate fim) {
+		LocalDate ini = inicio == null ? YearMonth.now().atDay(1) : inicio;
+		LocalDate f = fim == null ? LocalDate.now() : fim;
+		List<RelatorioLinhaDTO> linhas = montarLinhas(tipo, ini, f);
+
+		String titulo = switch (tipo) {
+			case ESTOQUE_ATUAL -> "Estoque atual";
+			case PROXIMO_VENCIMENTO -> "Próximo vencimento";
+			case VENCIDOS -> "Vencidos";
+			case PRODUTOS_ABERTOS -> "Produtos abertos";
+			case DESPERDICIO -> "Desperdício";
+			case CONSUMO_MEDIO -> "Consumo médio";
+		};
+		String[] cols = { "Item", "Detalhe", "Unidade", "Quantidade", "Valor", "Data", "Status" };
+		List<String[]> linhasPdf = new ArrayList<>();
+		for (RelatorioLinhaDTO l : linhas) {
+			linhasPdf.add(new String[] {
+					l.getChave(),
+					l.getDetalhe() != null ? l.getDetalhe() : "",
+					l.getUnidadeMedida() != null ? l.getUnidadeMedida() : "",
+					String.valueOf(l.getQuantidade() != null ? NumeroUtil.money(l.getQuantidade()).stripTrailingZeros().toPlainString() : ""),
+					NumeroUtil.money(l.getValor()).toPlainString(),
+					l.getData() != null ? l.getData() : "",
+					l.getStatus() != null ? l.getStatus() : ""
+			});
+		}
+		BigDecimal totalQtd = linhas.stream().map(RelatorioLinhaDTO::getQuantidade)
+				.filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+		BigDecimal totalValor = linhas.stream().map(RelatorioLinhaDTO::getValor)
+				.filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+		String[] total = { "Total", "", "", NumeroUtil.money(totalQtd).stripTrailingZeros().toPlainString(),
+				NumeroUtil.money(totalValor).stripTrailingZeros().toPlainString(), "", "" };
+		try {
+			return PdfReporter.gerarRelatorio("EstoQ — " + titulo,
+					"Período: " + ini + " a " + f + " · " + linhas.size() + " linha(s)",
+					cols, linhasPdf, total);
+		} catch (Exception e) {
+			throw new BusinessException("Falha ao gerar o PDF do relatório.", HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/** Gera o PDF do CMV do período. */
+	public byte[] gerarPdfCmv(LocalDate inicio, LocalDate fim, BigDecimal vendas) {
+		CMVReportDTO c = cmv(inicio, fim, vendas);
+		String[] cols = { "Produto", "Categoria", "Unidade", "Est. Inicial", "Entradas",
+				"Est. Final", "Consumo (R$)", "Desp. real (R$)", "CMV (R$)" };
+		List<String[]> linhasPdf = new ArrayList<>();
+		for (CMVItemDTO i : c.getItens()) {
+			linhasPdf.add(new String[] {
+					i.getProdutoNome(),
+					i.getCategoriaNome() != null ? i.getCategoriaNome() : "",
+					i.getUnidadeMedida() != null ? i.getUnidadeMedida() : "",
+					NumeroUtil.money(i.getEstoqueInicialQtd()).stripTrailingZeros().toPlainString(),
+					NumeroUtil.money(i.getEntradasQtd()).stripTrailingZeros().toPlainString(),
+					NumeroUtil.money(i.getEstoqueFinalQtd()).stripTrailingZeros().toPlainString(),
+					NumeroUtil.money(i.getConsumoValor()).toPlainString(),
+					NumeroUtil.money(i.getDesperdicioValor()).toPlainString(),
+					NumeroUtil.money(i.getTotalValor()).toPlainString()
+			});
+		}
+		String[] total = { "Total", "", "",
+				NumeroUtil.money(c.getItens().stream().map(CMVItemDTO::getEstoqueInicialQtd)
+						.filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add)).stripTrailingZeros().toPlainString(),
+				NumeroUtil.money(c.getItens().stream().map(CMVItemDTO::getEntradasQtd)
+						.filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add)).stripTrailingZeros().toPlainString(),
+				NumeroUtil.money(c.getItens().stream().map(CMVItemDTO::getEstoqueFinalQtd)
+						.filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add)).stripTrailingZeros().toPlainString(),
+				NumeroUtil.money(c.getTotalConsumo()).stripTrailingZeros().toPlainString(),
+				NumeroUtil.money(c.getTotalDesperdicio()).stripTrailingZeros().toPlainString(),
+				NumeroUtil.money(c.getTotalGeral()).stripTrailingZeros().toPlainString() };
+		try {
+			return PdfReporter.gerarRelatorio("EstoQ — Relatório CMV",
+					"Período: " + c.getDataInicio() + " a " + c.getDataFim()
+							+ (c.getVendas() != null && c.getVendas().signum() > 0
+									? " · Vendas: " + NumeroUtil.money(c.getVendas())
+									: " · Vendas não informadas")
+							+ (c.getCmv() != null ? " · % CMV: "
+									+ NumeroUtil.money(NumeroUtil.multiplica(c.getCmv(), BigDecimal.valueOf(100)))
+											.stripTrailingZeros().toPlainString() + "%" : ""),
+					cols, linhasPdf, total);
+		} catch (Exception e) {
+			throw new BusinessException("Falha ao gerar o PDF do CMV.", HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	// ------------------------------------------------------------ histórico e dashboard
 
 	@Transactional(readOnly = true)
@@ -371,7 +553,13 @@ public class RelatorioService {
 		dto.setConsumoMes(cmvMes.getTotalConsumo());
 		dto.setDesperdicioMes(cmvMes.getTotalDesperdicio());
 		dto.setCmvMes(cmvMes.getTotalGeral());
+		dto.setVendasMes(NumeroUtil.money(cmvMes.getVendas()));
 		dto.setTotalProdutos(produtoRepository.count());
+
+		BigDecimal metaDesperdicio = configuracaoService.obterBigDecimal(
+				ConfiguracaoService.META_DESPERDICIO, new BigDecimal("0.10"));
+		dto.setMetaDesperdicio(metaDesperdicio);
+		dto.setDesperdicioPct(NumeroUtil.percentual(dto.getDesperdicioMes(), dto.getCmvMes()));
 
 		long baixo = 0;
 		for (ProdutoModel p : produtoRepository.findAllByAtivoTrue(PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
@@ -386,9 +574,16 @@ public class RelatorioService {
 				LocalDate.now(), LocalDate.now().plusDays(DIAS_ALERTA_VENCIMENTO)).size());
 		dto.setLotesVencidos(loteRepository.findAllByAtivoTrueAndDataValidadeBeforeOrderByDataValidadeAsc(
 				LocalDate.now()).size());
+		dto.setEntradasSemValor(movRepository.contarEntradasSemValor(
+				ym.atDay(1).atStartOfDay(), ym.atEndOfMonth().plusDays(1).atStartOfDay()));
 		dto.setBalancoPendente(conferenciaService.balancoPendente());
 		dto.setAlertasPendentes(alertaService.contarPendentes());
 		dto.setPrincipaisAlertas(alertaService.listarPendentes().stream().limit(10).toList());
+		dto.setSessoesAtivas(sessaoService.contarAtivas());
+		BackupStatus st = backupService.status();
+		dto.setUltimoBackup(st.getUltimoBackup());
+		dto.setBackupEmDia(st.isBackupEmDia());
+		dto.setUltimosEventos(auditService.ultimosEventos(10));
 		return dto;
 	}
 }

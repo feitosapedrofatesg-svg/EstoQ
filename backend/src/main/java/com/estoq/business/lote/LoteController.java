@@ -5,16 +5,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/lotes")
 public class LoteController {
+
+	public record ValidadeRequest(LocalDate dataValidade) {
+	}
 
 	@Autowired
 	private LoteService loteService;
@@ -46,5 +52,10 @@ public class LoteController {
 	@GetMapping("/produto/{produtoId}")
 	public ResponseEntity<List<LoteView>> listarPorProduto(@PathVariable UUID produtoId) {
 		return ResponseEntity.ok(loteService.listarPorProduto(produtoId));
+	}
+
+	@PutMapping("/{id}/validade")
+	public ResponseEntity<LoteView> editarValidade(@PathVariable UUID id, @RequestBody ValidadeRequest request) {
+		return ResponseEntity.ok(loteService.editarValidade(id, request.dataValidade()));
 	}
 }

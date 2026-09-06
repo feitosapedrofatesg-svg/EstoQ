@@ -7,6 +7,7 @@ export interface Produto {
   categoriaNome: string | null;
   estoqueMinimo: number;
   saldoAtual: number;
+  precoUnitario: number | null;
 }
 
 export interface Categoria {
@@ -152,6 +153,8 @@ export interface CMVReportDTO {
   totalDesperdicio: number;
   totalGeral: number;
   cmv: number | null;
+  avaliacao: string;
+  mensagem: string;
   itens: CMVItemDTO[];
 }
 
@@ -162,13 +165,52 @@ export interface DashboardDTO {
   cmvMes: number;
   consumoMes: number;
   desperdicioMes: number;
+  vendasMes: number;
+  metaDesperdicio: number;
+  desperdicioPct: number;
   totalProdutos: number;
   produtosComEstoqueBaixo: number;
   lotesVencendo: number;
   lotesVencidos: number;
+  entradasSemValor: number;
   balancoPendente: boolean;
   alertasPendentes: number;
+  sessoesAtivas: number;
+  ultimoBackup: string | null;
+  backupEmDia: boolean;
   principaisAlertas: AlertaView[];
+  ultimosEventos: AuditLogView[];
+}
+
+export interface VendaMes {
+  ano: number;
+  mes: number;
+  valorVendas: number;
+}
+
+export interface AuditLogView {
+  id: string;
+  dataHora: string;
+  acao: string;
+  entidade: string;
+  entidadeId: string | null;
+  descricao: string;
+  usuarioNome: string;
+}
+
+export interface SessaoView {
+  id: string;
+  usuarioId: string;
+  usuarioNome: string;
+  criadoEm: string;
+  expiraEm: string;
+  origem: string | null;
+}
+
+export interface BackupStatus {
+  ultimoBackup: string | null;
+  arquivo: string | null;
+  backupEmDia: boolean;
 }
 
 export interface RelatorioLinhaDTO {
@@ -189,6 +231,28 @@ export interface RelatorioViewDTO {
   dataGeracao: string;
   linhasGeradas: number;
   linhas: RelatorioLinhaDTO[];
+}
+
+export interface EstoquePlanilhaLinha {
+  produto: string;
+  categoria: string;
+  unidade: string;
+  saldo: number;
+  estoqueMinimo: number;
+  custoMedio: number;
+  valorEstoque: number;
+  situacao: string;
+}
+
+export interface EstoquePlanilhaDTO {
+  linhas: EstoquePlanilhaLinha[];
+  totalSaldo: number;
+  totalMinimo: number;
+  totalValor: number;
+  totalProdutos: number;
+  semEstoque: number;
+  paraRepor: number;
+  geradoEm: string;
 }
 
 export interface RelatorioHistorico {

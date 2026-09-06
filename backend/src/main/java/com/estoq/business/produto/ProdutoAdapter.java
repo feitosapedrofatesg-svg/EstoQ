@@ -33,6 +33,7 @@ public class ProdutoAdapter implements IGenericAdapter<ProdutoModel, ProdutoDTO>
 		}
 		dto.setEstoqueMinimo(entity.getEstoqueMinimo());
 		dto.setSaldoAtual(entity.getSaldoAtual());
+		dto.setPrecoUnitario(entity.getPrecoUnitario());
 		return dto;
 	}
 
@@ -52,6 +53,7 @@ public class ProdutoAdapter implements IGenericAdapter<ProdutoModel, ProdutoDTO>
 					.orElseThrow(() -> new BusinessException("Categoria não encontrada.", HttpStatus.NOT_FOUND)));
 		}
 		entity.setEstoqueMinimo(dto.getEstoqueMinimo() == null ? BigDecimal.ZERO : dto.getEstoqueMinimo());
+		entity.setPrecoUnitario(dto.getPrecoUnitario());
 		return entity;
 	}
 

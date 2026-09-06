@@ -27,6 +27,15 @@ export function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
 }
 
+/** Mensagem amigável por código HTTP — nunca expõe detalhes técnicos nem códigos 5xx. */
+function mensagemErroHttp(status: number): string {
+  if (status === 401) return "Sessão expirada. Entre novamente.";
+  if (status === 403) return "Acesso negado: você não tem permissão para esta ação.";
+  if (status === 404) return "Recurso não encontrado.";
+  if (status === 400) return "Requisição inválida. Revise os dados informados.";
+  return "Não foi possível concluir a operação. Tente novamente.";
+}
+
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   if (!(options.body instanceof FormData)) {
@@ -37,19 +46,44 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     headers["Authorization"] = `Bearer ${auth.token}`;
   }
 
-  const res = await fetch(url, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch {
+    throw new ApiError(0, "Sem conexão com o servidor. Verifique sua rede e tente novamente.");
+  }
 
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // corpo não JSON (ex.: messages de delete) — mantém o texto como resultado
+      data = text;
+    }
+  }
 
   if (!res.ok) {
     if (res.status === 401 && !url.endsWith("/api/auth/login")) {
       clearAuth();
     }
-    const message =
-      data?.message || `Erro ${res.status} ao comunicar com o servidor.`;
+    // Erros 5xx nunca expõem detalhes do servidor nem o código HTTP para o usuário final.
+    let message = "";
+    if (res.status < 500) {
+      message =
+        typeof data === "object" && data && "message" in data
+          ? String((data as { message: string }).message)
+          : "";
+    }
+    if (!message) {
+      message =
+        res.status >= 500
+          ? "Ocorreu um erro inesperado. Tente novamente em alguns instantes."
+          : mensagemErroHttp(res.status);
+    }
     throw new ApiError(res.status, message);
   }
   return data as T;
@@ -61,6 +95,8 @@ export const api = {
     request<T>(url, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
   put: <T>(url: string, body?: unknown) =>
     request<T>(url, { method: "PUT", body: JSON.stringify(body) }),
+  patch: <T>(url: string, body?: unknown) =>
+    request<T>(url, { method: "PATCH", body: JSON.stringify(body) }),
   del: <T>(url: string) => request<T>(url, { method: "DELETE" }),
 
   upload: <T>(url: string, file: File, field = "arquivo") => {
@@ -119,19 +155,32 @@ export async function carregarProdutos(): Promise<Produto[]> {
   return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
-/** Download de arquivo (ex.: CSV) autenticado, disparando o salvamento no navegador. */
-export async function download(url: string, nome: string) {
+/** Download de arquivo (ex.: CSV/PDF) autenticado, disparando o salvamento no navegador. */
+export async function download(url: string, nome: string, init: RequestInit = {}) {
   const auth = getAuth();
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
   if (auth) headers["Authorization"] = `Bearer ${auth.token}`;
-  const res = await fetch(url, { headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers });
+  } catch {
+    throw new ApiError(0, "Sem conexão com o servidor. Verifique sua rede e tente novamente.");
+  }
   if (!res.ok) {
-    let message = `Erro ${res.status} ao baixar o arquivo.`;
-    try {
-      const data = await res.json();
-      message = data?.message || message;
-    } catch {
-      // corpo não é JSON — mantém a mensagem padrão
+    let message = "";
+    if (res.status < 500) {
+      try {
+        const data = await res.json();
+        message = data?.message || "";
+      } catch {
+        // corpo não é JSON — mantém a mensagem padrão
+      }
+    }
+    if (!message) {
+      message =
+        res.status >= 500
+          ? "Ocorreu um erro inesperado. Tente novamente em alguns instantes."
+          : mensagemErroHttp(res.status);
     }
     throw new ApiError(res.status, message);
   }

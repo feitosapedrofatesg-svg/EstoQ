@@ -81,7 +81,7 @@ export default function Login() {
   const reduce = useReducedMotion();
 
   if (auth) {
-    return <Navigate to={auth.perfil === "COZINHA" ? "/movimentacoes" : "/"} replace />;
+    return <Navigate to={auth.perfil === "COZINHA" ? "/consumo" : "/"} replace />;
   }
 
   async function autenticar(valor: string) {

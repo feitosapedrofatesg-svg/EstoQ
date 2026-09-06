@@ -9,6 +9,8 @@ import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
+
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
@@ -24,4 +26,10 @@ public class UsuarioModel extends BaseModel {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "perfil", length = 20, nullable = false)
 	private Perfil perfil;
+
+	@Column(name = "tentativas_falhas")
+	private Integer tentativasFalhas = 0;
+
+	@Column(name = "bloqueado_ate")
+	private LocalDateTime bloqueadoAte;
 }

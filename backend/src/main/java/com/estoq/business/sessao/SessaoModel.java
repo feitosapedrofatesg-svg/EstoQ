@@ -27,4 +27,7 @@ public class SessaoModel extends BaseModel {
 
 	@Column(name = "expira_em")
 	private LocalDateTime expiraEm;
+
+	@Column(name = "origem", length = 60)
+	private String origem;
 }

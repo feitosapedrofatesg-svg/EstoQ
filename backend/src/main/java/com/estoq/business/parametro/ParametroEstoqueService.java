@@ -1,10 +1,14 @@
 package com.estoq.business.parametro;
 
+import com.estoq.business.lote.ILoteRepository;
 import com.estoq.business.movimentacao.ConsumoModel;
 import com.estoq.business.movimentacao.IMovimentacaoEstoqueRepository;
 import com.estoq.business.movimentacao.MovimentacaoEstoqueModel;
 import com.estoq.business.produto.IProdutoRepository;
 import com.estoq.business.produto.ProdutoModel;
+import com.estoq.business.produtoaberto.IProdutoAbertoRepository;
+import com.estoq.business.produtoaberto.ProdutoAbertoModel;
+import com.estoq.business.usuario.UsuarioModel;
 import com.estoq.core.exceptions.BusinessException;
 import com.estoq.core.helpers.NumeroUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,12 @@ public class ParametroEstoqueService {
 
 	@Autowired
 	private IMovimentacaoEstoqueRepository movRepository;
+
+	@Autowired
+	private ILoteRepository loteRepository;
+
+	@Autowired
+	private IProdutoAbertoRepository produtoAbertoRepository;
 
 	@Autowired
 	private com.estoq.business.movimentacao.MovimentacaoService movimentacaoService;
@@ -97,10 +107,31 @@ public class ParametroEstoqueService {
 	}
 
 	@Transactional
-	public int recalcularTodos() {
+	public int resetarTodos(UsuarioModel usuario) {
 		int qtd = 0;
 		for (ProdutoModel p : produtoRepository.findAllByAtivoTrue(PageRequest.of(0, Integer.MAX_VALUE)).getContent()) {
-			recalcular(p.getId());
+			for (ProdutoAbertoModel a : produtoAbertoRepository
+					.findAllByProduto_IdAndFinalizadoFalseAndAtivoTrueOrderByDataAberturaAsc(p.getId())) {
+				a.setQuantidadeUtilizada(a.getQuantidadeAberta());
+				a.marcarFinalizado();
+				produtoAbertoRepository.save(a);
+			}
+			BigDecimal lotes = NumeroUtil.s(loteRepository.sumQuantidadeAtualByProdutoId(p.getId()));
+			if (lotes.signum() != 0) {
+				movimentacaoService.registrarAjuste(p.getId(), usuario, lotes.negate(),
+						"Reset de parâmetros de estoque", null, "Saldo zerado e parâmetros resetados.");
+			}
+			ParametroEstoqueModel par = parametroRepository.findByProdutoAndAtivoTrue(p).orElseGet(() -> {
+				ParametroEstoqueModel novo = new ParametroEstoqueModel();
+				novo.setProduto(p);
+				return novo;
+			});
+			par.setConsumoMedioDiario(BigDecimal.ZERO);
+			par.setEstoqueMinimo(BigDecimal.ZERO);
+			par.setEstoqueMedio(BigDecimal.ZERO);
+			par.setEstoqueMaximo(BigDecimal.ZERO);
+			par.setDataAtualizacao(LocalDateTime.now());
+			parametroRepository.save(par);
 			qtd++;
 		}
 		return qtd;

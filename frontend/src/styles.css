@@ -215,6 +215,7 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
 .form-error { color: #b91c1c; font-size: 13px; margin-top: 8px; }
+.qr-resumo { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--primary-soft); border-radius: 8px; background: var(--primary-soft); }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 
 /* ---------- Badges ---------- */
@@ -426,6 +427,10 @@ table.tbl { width: 100%; border-collapse: collapse; }
   font-size: 13px;
 }
 .aviso strong { color: #78350f; }
+.aviso.ok { background: var(--ok-soft); border-color: #6ee7b7; color: #065f46; }
+.aviso.danger { background: var(--danger-soft); border-color: #fca5a5; color: #991b1b; }
+.aviso.ok strong { color: #047857; }
+.aviso.danger strong { color: #991b1b; }
 
 /* ---------- Day picker (conferência) ---------- */
 .day-grid {
@@ -498,4 +503,159 @@ table.tbl { width: 100%; border-collapse: collapse; }
     transition-duration: 0.001s !important;
   }
   .blob { display: none; }
+}
+
+/* ============================================================
+ * UX System — toasts, skeletons, combobox, steppers (H1/H3/H6/H8)
+ * ============================================================ */
+
+/* ---------- Toasts ---------- */
+.toast-wrap {
+  position: fixed; top: 16px; right: 16px; z-index: 100;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 14px; border-radius: 12px;
+  background: #fff; color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  font-size: 13.5px; font-weight: 500;
+  cursor: pointer;
+}
+.toast .toast-ico {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 800; color: #fff;
+  flex-shrink: 0; margin-top: 1px;
+}
+.toast.ok { border-left: 3px solid var(--ok); }
+.toast.ok .toast-ico { background: var(--ok); }
+.toast.danger { border-left: 3px solid var(--danger); }
+.toast.danger .toast-ico { background: var(--danger); }
+.toast.info { border-left: 3px solid var(--primary); }
+.toast.info .toast-ico { background: var(--primary); }
+
+/* ---------- Confirm dialog ---------- */
+.confirm-modal { max-width: 430px; }
+.confirm-text { color: var(--text-2); font-size: 14px; margin: 0 0 4px; }
+.confirm-modal .form-actions { margin-top: 20px; }
+
+/* ---------- Skeleton ---------- */
+.skel {
+  display: inline-block;
+  background: linear-gradient(90deg, #e9edf2 25%, #dfe5ec 37%, #e9edf2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ---------- Empty state ilustrado ---------- */
+.empty-wrap { padding: 26px 10px; text-align: center; color: var(--text-2); }
+.empty-ico { font-size: 34px; margin-bottom: 6px; opacity: 0.75; }
+.empty-wrap .empty { padding: 0; }
+
+/* ---------- Carregamento de página ---------- */
+.page-load {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 44px 0; color: var(--text-2); font-weight: 600;
+}
+
+/* ---------- Product picker (busca) ---------- */
+.ppick { position: relative; }
+.ppick-input {
+  width: 100%; padding: 9px 30px 9px 11px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; font-family: inherit; background: #fff;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.ppick-input:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
+.ppick-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; border: none; background: none;
+  color: var(--text-2); font-size: 12px; cursor: pointer; border-radius: 50%;
+  display: grid; place-items: center;
+}
+.ppick-clear:hover { background: var(--surface-2); color: var(--text); }
+.ppick-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+  max-height: 280px; overflow: auto; z-index: 30;
+}
+.ppick-item {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 9px 12px; border: none; border-bottom: 1px solid var(--border);
+  background: #fff; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 14px;
+  transition: background 0.12s var(--ease);
+}
+.ppick-item:last-child { border-bottom: none; }
+.ppick-item:hover { background: var(--surface-2); }
+.ppick-item.sel { background: var(--primary-soft); }
+.ppick-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ppick-un {
+  flex-shrink: 0; color: var(--text-2); font-size: 11px;
+  background: var(--surface-2); border-radius: 999px; padding: 2px 7px; font-weight: 600;
+}
+.ppick-vazio { padding: 14px; color: var(--text-2); font-size: 13px; text-align: center; }
+
+/* ---------- Stepper de quantidade ---------- */
+.qty-stepper { display: inline-flex; align-items: center; gap: 4px; width: 100%; }
+.qty-stepper input {
+  flex: 1; min-width: 0; padding: 7px 8px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; text-align: center; font-family: inherit;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.qty-stepper input:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
+.qty-btn {
+  width: 30px; height: 34px; border: 1px solid var(--border);
+  background: var(--surface-2); border-radius: 8px;
+  font-size: 17px; font-weight: 700; cursor: pointer; color: var(--text);
+  line-height: 1; transition: all 0.12s var(--ease);
+}
+.qty-btn:hover { background: var(--primary-soft); border-color: var(--primary); }
+.qty-btn:active { transform: scale(0.92); }
+.qty-un { color: var(--text-2); font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* ---------- Chips de acesso rápido (usados hoje) ---------- */
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+.chip {
+  border: 1px solid var(--border); background: var(--surface);
+  border-radius: 999px; padding: 5px 12px;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  cursor: pointer; transition: all 0.15s var(--ease);
+}
+.chip:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-dark); }
+.chip .chip-un { color: var(--text-2); font-weight: 500; }
+
+/* ---------- Micro-interações ---------- */
+.stat { transition: box-shadow 0.18s var(--ease), border-color 0.18s var(--ease); }
+.stat:hover { box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09); border-color: #d4dbe3; }
+.tbl tbody tr { transition: background 0.12s var(--ease); }
+.tbl tbody tr:hover { background: #f8fafc; }
+.btn {
+  transition: transform 0.12s var(--ease), background 0.15s var(--ease),
+    border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+.btn.primary { background: linear-gradient(135deg, var(--primary), #ea580c); box-shadow: 0 4px 12px rgba(249, 115, 22, 0.26); }
+.btn.primary:hover { background: linear-gradient(135deg, #ea580c, var(--primary-dark)); box-shadow: 0 6px 16px rgba(249, 115, 22, 0.38); }
+
+/* Sidebar: indicador ativo + ícones vivos */
+.sidebar nav a { position: relative; transition: background 0.15s var(--ease), color 0.15s var(--ease), transform 0.15s var(--ease); }
+.sidebar nav a:hover { transform: translateX(3px); }
+.sidebar nav a.active {
+  background: linear-gradient(135deg, var(--primary), #ea580c);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.32);
+}
+.sidebar nav a .ico { display: inline-block; transition: transform 0.15s var(--ease); }
+.sidebar nav a:hover .ico { transform: scale(1.18); }
+.sidebar .side-foot {
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.04));
 }

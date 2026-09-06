@@ -16,4 +16,5 @@ public class ProdutoDTO extends BaseDTO {
 	private String categoriaNome;
 	private BigDecimal estoqueMinimo;
 	private BigDecimal saldoAtual;
+	private BigDecimal precoUnitario;
 }

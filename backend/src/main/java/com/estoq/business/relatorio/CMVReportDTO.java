@@ -19,5 +19,7 @@ public class CMVReportDTO {
 	private BigDecimal totalDesperdicio;
 	private BigDecimal totalGeral;
 	private BigDecimal cmv;
+	private String avaliacao;
+	private String mensagem;
 	private List<CMVItemDTO> itens = new ArrayList<>();
 }

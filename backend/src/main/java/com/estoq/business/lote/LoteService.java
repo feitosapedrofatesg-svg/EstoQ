@@ -1,7 +1,9 @@
 package com.estoq.business.lote;
 
 import com.estoq.business.lote.LoteView;
+import com.estoq.core.exceptions.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +52,15 @@ public class LoteService {
 				? repository.findAllByProduto_IdAndAtivoTrue(produtoId)
 				: repository.findAllByAtivoTrueAndDataValidadeBeforeOrderByDataValidadeAsc(hoje);
 		return lotes.stream().filter(LoteModel::estaVencido).map(this::toView).toList();
+	}
+
+	@Transactional
+	public LoteView editarValidade(UUID id, LocalDate dataValidade) {
+		LoteModel lote = repository.findByIdAndAtivoTrue(id)
+				.orElseThrow(() -> new BusinessException("Lote não encontrado.", HttpStatus.NOT_FOUND));
+		lote.setDataValidade(dataValidade);
+		repository.save(lote);
+		return toView(lote);
 	}
 
 	private LoteView toView(LoteModel l) {

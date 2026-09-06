@@ -31,6 +31,9 @@ public class EntradaModel extends MovimentacaoEstoqueModel {
 	@Column(name = "unidade_compra", length = 20)
 	private UnidadeMedida unidadeCompra;
 
+	@Column(name = "fator_conversao", precision = 12, scale = 3)
+	private BigDecimal fatorConversao;
+
 	@Column(name = "data_validade")
 	private LocalDate dataValidade;
 

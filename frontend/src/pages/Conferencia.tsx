@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, download, formatDate, formatDateTime, formatQtd } from "../api";
 import { Badge, Modal, useAsyncData } from "../components";
+import { useConfirm, useToast, TableSkeleton } from "../ux";
 import type { BalancoView, ConfiguracaoBalancoView, ItemBalancoView } from "../types";
 
 const periodicidades = [
@@ -23,6 +24,8 @@ function BalancoModal({
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const { confirmar } = useConfirm();
+  const { toast } = useToast();
 
   const carregar = async () => {
     setCarregando(true);
@@ -84,14 +87,20 @@ function BalancoModal({
     }
   }
 
-  async function confirmar() {
-    if (!window.confirm("Confirmar este balanço? Ajustes de estoque serão gerados para as diferenças.")) return;
+  async function confirmarBalanco() {
+    const ok = await confirmar({
+      titulo: "Confirmar balanço",
+      texto: "Confirmar este balanço? Ajustes de estoque serão gerados para as diferenças.",
+      confirmarLabel: "Confirmar",
+    });
+    if (!ok) return;
     setErro("");
     setSalvando(true);
     try {
       const b = await api.post<BalancoView>(`/api/conferencia/balancos/${balancoId}/confirmar`);
       setBalanco(b);
       onConcluido();
+      toast("Balanço confirmado. Ajustes de estoque gerados.");
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao confirmar balanço.");
     } finally {
@@ -100,13 +109,20 @@ function BalancoModal({
   }
 
   async function cancelar() {
-    if (!window.confirm("Cancelar este balanço? Ele ficará marcado como cancelado.")) return;
+    const ok = await confirmar({
+      titulo: "Cancelar balanço",
+      texto: "Cancelar este balanço? Ele ficará marcado como cancelado.",
+      confirmarLabel: "Cancelar",
+      perigo: true,
+    });
+    if (!ok) return;
     setErro("");
     setSalvando(true);
     try {
       const b = await api.post<BalancoView>(`/api/conferencia/balancos/${balancoId}/cancelar`);
       setBalanco(b);
       onConcluido();
+      toast("Balanço cancelado.", "danger");
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao cancelar balanço.");
     } finally {
@@ -115,13 +131,19 @@ function BalancoModal({
   }
 
   async function reabrir() {
-    if (!window.confirm("Reabrir este balanço cancelado? Ele voltará para em andamento.")) return;
+    const ok = await confirmar({
+      titulo: "Reabrir balanço",
+      texto: "Reabrir este balanço cancelado? Ele voltará para em andamento.",
+      confirmarLabel: "Reabrir",
+    });
+    if (!ok) return;
     setErro("");
     setSalvando(true);
     try {
       const b = await api.post<BalancoView>(`/api/conferencia/balancos/${balancoId}/reabrir`);
       setBalanco(b);
       onConcluido();
+      toast("Balanço reaberto.");
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao reabrir balanço.");
     } finally {
@@ -177,7 +199,7 @@ function BalancoModal({
   return (
     <Modal title="Balanço" onClose={onClose} wide>
       {carregando ? (
-        <div className="muted">Carregando…</div>
+        <TableSkeleton linhas={4} colunas={4} />
       ) : !balanco ? (
         <div className="empty">{erro || "Balanço não encontrado."}</div>
       ) : (
@@ -223,8 +245,8 @@ function BalancoModal({
                           <button
                             type="button"
                             className={`btn check-btn${salvo ? " saved" : ""}`}
-disabled={bloqueado || salvo}
-                        onClick={() => salvarItem(i)}
+                            disabled={confirmado || salvo}
+                            onClick={() => salvarItem(i)}
                             aria-label={salvo ? "Diferença salva" : "Salvar diferença"}
                             title={salvo ? "Salvo" : "Salvar"}
                           >
@@ -264,7 +286,7 @@ disabled={bloqueado || salvo}
               <>
                 <button className="btn danger" disabled={salvando} onClick={cancelar}>Cancelar balanço</button>
                 <button className="btn" disabled={salvando} onClick={apurar}>Apurar</button>
-                <button className="btn primary" disabled={salvando} onClick={confirmar}>
+                <button className="btn primary" disabled={salvando} onClick={confirmarBalanco}>
                   {salvando ? "Confirmando…" : "Confirmar"}
                 </button>
               </>
@@ -292,6 +314,8 @@ export default function Conferencia() {
   const [erroCfg, setErroCfg] = useState("");
   const [iniciando, setIniciando] = useState(false);
   const [balancoModal, setBalancoModal] = useState<string | null>(null);
+  const { confirmar } = useConfirm();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (configData) {
@@ -317,34 +341,54 @@ export default function Conferencia() {
   }
 
   async function reabrirBalancos(b: BalancoView) {
-    if (!window.confirm(`Reabrir o balanço cancelado de ${formatDateTime(b.dataHora)}?`)) return;
+    const ok = await confirmar({
+      titulo: "Reabrir balanço",
+      texto: <>Reabrir o balanço cancelado de <strong>{formatDateTime(b.dataHora)}</strong>?</>,
+      confirmarLabel: "Reabrir",
+    });
+    if (!ok) return;
     try {
       await api.post(`/api/conferencia/balancos/${b.id}/reabrir`);
       reloadBalancos();
       reloadConfig();
+      toast("Balanço reaberto.");
     } catch (e: unknown) {
       setErroCfg((e as Error).message || "Erro ao reabrir balanço.");
     }
   }
 
   async function excluirBalancos(b: BalancoView) {
-    if (!window.confirm(`Excluir definitivamente o balanço cancelado de ${formatDateTime(b.dataHora)}? Esta ação não pode ser desfeita.`)) return;
+    const ok = await confirmar({
+      titulo: "Excluir balanço",
+      texto: <>Excluir definitivamente o balanço cancelado de <strong>{formatDateTime(b.dataHora)}</strong>? Esta ação não pode ser desfeita.</>,
+      confirmarLabel: "Excluir",
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.del(`/api/conferencia/balancos/${b.id}`);
       reloadBalancos();
       reloadConfig();
+      toast("Balanço excluído.", "danger");
     } catch (e: unknown) {
       setErroCfg((e as Error).message || "Erro ao excluir balanço.");
     }
   }
 
   async function cancelarBalancos(b: BalancoView) {
-    if (!window.confirm(`Cancelar o balanço de ${formatDateTime(b.dataHora)}?`)) return;
+    const ok = await confirmar({
+      titulo: "Cancelar balanço",
+      texto: <>Cancelar o balanço de <strong>{formatDateTime(b.dataHora)}</strong>?</>,
+      confirmarLabel: "Cancelar",
+      perigo: true,
+    });
+    if (!ok) return;
     setErroCfg("");
     try {
       await api.post(`/api/conferencia/balancos/${b.id}/cancelar`);
       reloadBalancos();
       reloadConfig();
+      toast("Balanço cancelado.", "danger");
     } catch (e: unknown) {
       setErroCfg((e as Error).message || "Erro ao cancelar balanço.");
     }
@@ -449,7 +493,7 @@ export default function Conferencia() {
 
       <h3 style={{ margin: "0 0 10px" }}>Balanços realizados</h3>
       {loadingBalancos ? (
-        <div className="muted">Carregando…</div>
+        <TableSkeleton linhas={4} colunas={7} />
       ) : !balancos || balancos.length === 0 ? (
         <div className="empty">Nenhum balanço ainda.</div>
       ) : (

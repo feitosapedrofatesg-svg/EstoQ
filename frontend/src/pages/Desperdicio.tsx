@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, carregarProdutos, formatDateTime, formatMoney, formatQtd, hojeIso, inicioMesIso } from "../api";
 import { useAsyncData } from "../components";
+import { ProductPicker, QuantityInput, useToast, TableSkeleton } from "../ux";
 import type { LoteView, MovimentacaoView, Produto } from "../types";
 
 const motivoLabel: Record<string, string> = {
@@ -12,6 +13,7 @@ const motivoLabel: Record<string, string> = {
 };
 
 export default function Desperdicio() {
+  const { toast } = useToast();
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("1");
   const [motivo, setMotivo] = useState("VENCIMENTO");
@@ -36,11 +38,16 @@ export default function Desperdicio() {
   );
 
   const desperdicios = (movs || []).filter((m) => m.tipo === "DESPERDICIO");
+  const periodoInvalido = inicio > fim;
+  const unidadeProduto = (produtos || []).find((p) => p.id === produtoId)?.unidadeMedida || "";
+  const disponivel = (lotes || []).reduce((s, l) => s + l.quantidadeAtual, 0);
+  const acimaDisponivel = disponivel > 0 && parseFloat(quantidade.replace(",", ".")) > disponivel;
 
   async function registrar() {
     setSalvando(true);
     setErro("");
     try {
+      const nome = (produtos || []).find((p) => p.id === produtoId)?.nome || "";
       await api.post("/api/movimentacoes/desperdicio", {
         produtoId,
         quantidade: parseFloat(quantidade.replace(",", ".")),
@@ -56,6 +63,7 @@ export default function Desperdicio() {
       setLoteId("");
       setObservacao("");
       setRefresh((k) => k + 1);
+      toast(`Desperdício registrado: ${nome || "produto"} (${formatQtd(parseFloat(quantidade.replace(",", ".")))} ${unidadeProduto})`, "danger");
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao registrar desperdício.");
     } finally {
@@ -77,16 +85,32 @@ export default function Desperdicio() {
         <div className="form-row three">
           <div className="field">
             <label>Produto *</label>
-            <select value={produtoId} onChange={(e) => { setProdutoId(e.target.value); setLoteId(""); }}>
-              <option value="">Selecione…</option>
-              {(produtos || []).map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-            </select>
+            <ProductPicker
+              produtos={produtos || []}
+              value={produtoId}
+              placeholder="Buscar produto…"
+              onChange={(id) => { setProdutoId(id); setLoteId(""); }}
+            />
           </div>
           <div className="field">
             <label>Quantidade *</label>
-            <input type="number" min="0" step="1" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
+            <QuantityInput
+              value={quantidade}
+              onChange={setQuantidade}
+              min={0}
+              step={1}
+              unidade={unidadeProduto}
+            />
+            {produtoId && (
+              <span
+                className="small"
+                style={acimaDisponivel ? { color: "var(--warn)", fontWeight: 600 } : undefined}
+              >
+                {disponivel > 0
+                  ? `Disponível: ${formatQtd(disponivel)} ${unidadeProduto}${acimaDisponivel ? " — acima do disponível" : ""}`
+                  : "Sem estoque disponível para este produto"}
+              </span>
+            )}
           </div>
           <div className="field">
             <label>Motivo *</label>
@@ -137,8 +161,12 @@ export default function Desperdicio() {
           <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
         </div>
 
-        {loading ? (
-          <div className="muted">Carregando…</div>
+        {periodoInvalido ? (
+          <div className="aviso">
+            Período inválido: a data inicial é posterior à data final. Ajuste o intervalo para listar os registros.
+          </div>
+        ) : loading ? (
+          <TableSkeleton linhas={5} colunas={7} />
         ) : desperdicios.length === 0 ? (
           <div className="empty">Nenhum desperdício registrado no período.</div>
         ) : (

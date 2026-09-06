@@ -3,7 +3,8 @@ import { motion } from "motion/react";
 import { RequireAuth, useAuth } from "./auth";
 import Produtos from "./pages/Produtos";
 import Relatorios from "./pages/Relatorios";
-import Movimentacoes from "./pages/Movimentacoes";
+import Consumo from "./pages/Consumo";
+import Entradas from "./pages/Entradas";
 import Desperdicio from "./pages/Desperdicio";
 import Lotes from "./pages/Lotes";
 import Conferencia from "./pages/Conferencia";
@@ -12,7 +13,8 @@ import Login from "./pages/Login";
 
 const navAdmin = [
   { to: "/relatorios", label: "Relatórios", ico: "📈" },
-  { to: "/movimentacoes", label: "Movimentações", ico: "📝" },
+  { to: "/entradas", label: "Entrada de itens", ico: "🛒" },
+  { to: "/consumo", label: "Consumo do dia", ico: "🍽️" },
   { to: "/desperdicio", label: "Desperdício", ico: "✂️" },
   { to: "/lotes", label: "Estoque", ico: "📦" },
   { to: "/produtos", label: "Produtos", ico: "🏷️" },
@@ -21,7 +23,7 @@ const navAdmin = [
 ];
 
 const navCozinha = [
-  { to: "/movimentacoes", label: "Movimentações", ico: "📝" },
+  { to: "/consumo", label: "Consumo do dia", ico: "🍽️" },
   { to: "/lotes", label: "Estoque", ico: "📦" },
   { to: "/desperdicio", label: "Desperdício", ico: "✂️" },
 ];
@@ -53,7 +55,7 @@ export default function App() {
 
   const ehCozinha = auth.perfil === "COZINHA";
   const ehNutricionista = auth.perfil === "NUTRICIONISTA";
-  const home = ehCozinha ? "/movimentacoes" : "/relatorios";
+  const home = ehCozinha ? "/consumo" : "/relatorios";
   const nav = ehCozinha ? navCozinha : ehNutricionista ? navNutricionista : navAdmin;
 
   return (
@@ -88,7 +90,8 @@ export default function App() {
         >
           <Routes location={location}>
             <Route path="/" element={<Navigate to={home} replace />} />
-            <Route path="/movimentacoes" element={<RequireAuth><Movimentacoes /></RequireAuth>} />
+            <Route path="/consumo" element={<RequireAuth><Consumo /></RequireAuth>} />
+            <Route path="/entradas" element={<RequireAuth adminOnly><Entradas /></RequireAuth>} />
             <Route path="/produtos" element={<RequireAuth><Produtos /></RequireAuth>} />
             <Route path="/lotes" element={<RequireAuth><Lotes /></RequireAuth>} />
             <Route path="/relatorios" element={<RequireAuth adminOnly><Relatorios /></RequireAuth>} />

@@ -56,7 +56,7 @@ export function RequireAuth({ children, adminOnly }: { children: React.ReactNode
   const { auth, loading } = useAuth();
   if (loading) return <div className="empty">Carregando…</div>;
   if (!auth) return <Navigate to="/login" replace />;
-  if (auth.perfil === "COZINHA" && adminOnly) return <Navigate to="/movimentacoes" replace />;
+  if (auth.perfil === "COZINHA" && adminOnly) return <Navigate to="/consumo" replace />;
   return <>{children}</>;
 }
 

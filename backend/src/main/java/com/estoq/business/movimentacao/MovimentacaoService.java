@@ -1,5 +1,6 @@
 package com.estoq.business.movimentacao;
 
+import com.estoq.business.auditoria.AuditService;
 import com.estoq.business.movimentacao.MovimentacaoView;
 import com.estoq.business.produtoaberto.ProdutoAbertoView;
 import com.estoq.business.balanco.ItemBalancoModel;
@@ -49,29 +50,49 @@ public class MovimentacaoService {
 	@Autowired
 	private IItemBalancoRepository itemBalancoRepository;
 
+	@Autowired
+	private AuditService auditService;
+
 	// ------------------------------------------------------------------ entradas
 
 	@Transactional
 	public MovimentacaoView registrarEntrada(UUID produtoId, UsuarioModel usuario, BigDecimal quantidade,
-			BigDecimal valorTotalPago, UnidadeMedida unidadeCompra, LocalDate dataValidade, String observacao) {
+			BigDecimal valorTotalPago, UnidadeMedida unidadeCompra, BigDecimal fatorConversao,
+			LocalDate dataValidade, String observacao) {
 		ProdutoModel produto = buscarProduto(produtoId);
+		if (quantidade == null || quantidade.signum() <= 0) {
+			throw new BusinessException("Quantidade deve ser maior que zero.", HttpStatus.BAD_REQUEST);
+		}
+		BigDecimal fator = NumeroUtil.s(fatorConversao);
+		if (fator.signum() <= 0) {
+			fator = BigDecimal.ONE;
+		}
+		BigDecimal quantidadeEstoque = quantidade.multiply(fator);
+		if (quantidadeEstoque.signum() <= 0) {
+			throw new BusinessException("Quantidade em estoque deve ser maior que zero.", HttpStatus.BAD_REQUEST);
+		}
 		BigDecimal saldoAnterior = obterSaldo(produto.getId());
 
 		EntradaModel entrada = new EntradaModel();
 		entrada.setProduto(produto);
 		entrada.setUsuario(usuario);
 		entrada.setDataHora(LocalDateTime.now());
-		entrada.setQuantidade(quantidade);
+		entrada.setQuantidade(quantidadeEstoque);
 		entrada.setQuantidadeAnterior(saldoAnterior);
 		entrada.setValorTotalPago(valorTotalPago);
 		entrada.setUnidadeCompra(unidadeCompra == null ? UnidadeMedida.UN : unidadeCompra);
+		entrada.setFatorConversao(fator);
 		entrada.setDataValidade(dataValidade);
 		entrada.setObservacao(observacao);
 
 		LoteModel lote = entrada.gerarLote(produto, LocalDate.now());
 		loteRepository.save(lote);
-		entrada.setQuantidadePosterior(saldoAnterior.add(quantidade));
+		entrada.setQuantidadePosterior(saldoAnterior.add(quantidadeEstoque));
 		movRepository.save(entrada);
+		auditService.registrar("ENTRADA", "MOVIMENTACAO", String.valueOf(entrada.getId()),
+				"Entrada de " + quantidade + " " + (unidadeCompra != null ? unidadeCompra : "") + " de "
+						+ produto.getNome(),
+				usuario);
 		return toView(entrada);
 	}
 
@@ -125,6 +146,8 @@ public class MovimentacaoService {
 		consumo.setCustoConsumo(calcularCusto(consumo));
 		consumo.setQuantidadePosterior(obterSaldo(produto.getId()));
 		movRepository.save(consumo);
+		auditService.registrar("CONSUMO", "MOVIMENTACAO", String.valueOf(consumo.getId()),
+				"Consumo de " + quantidade + " de " + produto.getNome(), usuario);
 		return toView(consumo);
 	}
 
@@ -158,6 +181,10 @@ public class MovimentacaoService {
 		desp.setObservacao(observacao);
 		desp.setQuantidadePosterior(obterSaldo(produto.getId()));
 		movRepository.save(desp);
+		auditService.registrar("DESPERDICIO", "MOVIMENTACAO", String.valueOf(desp.getId()),
+				"Desperdício de " + quantidade + " de " + produto.getNome()
+						+ (motivo != null ? " (" + motivo + ")" : ""),
+				usuario);
 		return toView(desp);
 	}
 
@@ -199,6 +226,10 @@ public class MovimentacaoService {
 		ajuste.setLote(lote);
 		ajuste.setQuantidadePosterior(obterSaldo(produto.getId()));
 		movRepository.save(ajuste);
+		auditService.registrar("AJUSTE", "MOVIMENTACAO", String.valueOf(ajuste.getId()),
+				"Ajuste de " + diferenca + " em " + produto.getNome()
+						+ (justificativa != null ? " — " + justificativa : ""),
+				usuario);
 		return toView(ajuste);
 	}
 
@@ -259,6 +290,9 @@ public class MovimentacaoService {
 		desp.setObservacao("Sobra de embalagem aberta");
 		desp.setQuantidadePosterior(obterSaldo(aberto.getProduto().getId()));
 		movRepository.save(desp);
+		auditService.registrar("SOBRA", "MOVIMENTACAO", String.valueOf(desp.getId()),
+				"Sobra de " + quantidade + " de " + aberto.getProduto().getNome() + " (embalagem aberta)",
+				usuario);
 		return toView(aberto);
 	}
 
@@ -274,7 +308,7 @@ public class MovimentacaoService {
 		} else {
 			movs = movRepository.findAllByDataHoraBetweenOrderByDataHoraAsc(ini, fimDt);
 		}
-		return movs.stream().map(this::toView).toList();
+		return movs.stream().filter(MovimentacaoEstoqueModel::isAtivo).map(this::toView).toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -333,7 +367,7 @@ public class MovimentacaoService {
 	}
 
 	@Transactional
-	public void reverterMovimentacao(UUID movId) {
+	public void reverterMovimentacao(UUID movId, UsuarioModel usuario) {
 		MovimentacaoEstoqueModel mov = movRepository.findByIdAndAtivoTrue(movId)
 				.orElseThrow(() -> new BusinessException("Movimentação não encontrada.", HttpStatus.NOT_FOUND));
 		switch (mov.getTipo()) {
@@ -378,6 +412,9 @@ public class MovimentacaoService {
 				throw new BusinessException("Tipo de movimentação não suporta reversão.", HttpStatus.BAD_REQUEST);
 		}
 		movRepository.save(mov);
+		auditService.registrar("REVERSAO", "MOVIMENTACAO", String.valueOf(mov.getId()),
+				"Reversão de " + mov.getTipo() + " de " + (mov.getProduto() != null ? mov.getProduto().getNome() : "?"),
+				usuario);
 	}
 
 	// ------------------------------------------------------------------ helpers

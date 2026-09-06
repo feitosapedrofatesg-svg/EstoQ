@@ -16,6 +16,11 @@ public interface IMovimentacaoEstoqueRepository extends IGenericRepository<Movim
 	List<MovimentacaoEstoqueModel> findAllByDataHoraBetweenOrderByDataHoraAsc(
 			LocalDateTime inicio, LocalDateTime fim);
 
+	@Query("select count(e) from EntradaModel e where e.ativo = true "
+			+ "and e.dataHora between :inicio and :fim "
+			+ "and (e.valorTotalPago is null or e.valorTotalPago <= 0)")
+	long contarEntradasSemValor(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
 	@Query("select m from MovimentacaoEstoqueModel m where type(m) = DesperdicioModel "
 			+ "and m.dataHora between :inicio and :fim order by m.dataHora desc")
 	List<MovimentacaoEstoqueModel> findDesperdicios(@Param("inicio") LocalDateTime inicio,

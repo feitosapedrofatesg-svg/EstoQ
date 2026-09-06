@@ -29,6 +29,10 @@ public class ProdutoModel extends BaseModel {
 	@Column(name = "unidade_medida", length = 20, nullable = false)
 	private UnidadeMedida unidadeMedida;
 
+	/** Custo/preço unitário do produto (opcional). */
+	@Column(name = "preco_unitario", precision = 14, scale = 2)
+	private BigDecimal precoUnitario;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "categoria_id")
 	private CategoriaModel categoria;

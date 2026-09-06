@@ -4,12 +4,14 @@ import com.estoq.business.parametro.ParametroEstoqueModel;
 import com.estoq.business.parametro.ParametroEstoqueService;
 import com.estoq.business.produto.IProdutoRepository;
 import com.estoq.business.produto.ProdutoModel;
+import com.estoq.business.usuario.UsuarioModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -52,9 +54,10 @@ public class ParametroEstoqueController {
 		return ResponseEntity.ok(toView(parametroEstoqueService.recalcular(produtoId)));
 	}
 
-	@PostMapping("/recalcular-todos")
-	public ResponseEntity<Map<String, Object>> recalcularTodos() {
-		int qtd = parametroEstoqueService.recalcularTodos();
+	@PostMapping("/resetar-todos")
+	public ResponseEntity<Map<String, Object>> resetarTodos(
+			@RequestAttribute("usuario_logado") UsuarioModel usuario) {
+		int qtd = parametroEstoqueService.resetarTodos(usuario);
 		return ResponseEntity.ok(Map.of("atualizados", qtd));
 	}
 

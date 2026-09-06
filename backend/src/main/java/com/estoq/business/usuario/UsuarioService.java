@@ -1,5 +1,6 @@
 package com.estoq.business.usuario;
 
+import com.estoq.business.auditoria.AuditService;
 import com.estoq.core.services.GenericService;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,9 @@ public class UsuarioService extends GenericService<UsuarioModel, IUsuarioReposit
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
+	@Autowired
+	private AuditService auditService;
+
 	@Override
 	protected void beforeInsert(UsuarioModel entity) {
 		entity.setNome(entity.getNome().trim());
@@ -25,6 +29,11 @@ public class UsuarioService extends GenericService<UsuarioModel, IUsuarioReposit
 	public UsuarioModel alterarPin(UUID id, String pin) {
 		UsuarioModel usuario = findByIdActive(id);
 		usuario.setPin(passwordEncoder.encode(pin));
-		return repository.save(usuario);
+		usuario.setTentativasFalhas(0);
+		usuario.setBloqueadoAte(null);
+		UsuarioModel salvo = repository.save(usuario);
+		auditService.registrar("ALTERACAO", "USUARIO", id.toString(),
+				"PIN alterado para o usuário " + usuario.getNome(), null);
+		return salvo;
 	}
 }

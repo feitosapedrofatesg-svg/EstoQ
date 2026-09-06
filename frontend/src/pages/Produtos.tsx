@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { api, formatQtd } from "../api";
+import { api, formatMoney, formatQtd } from "../api";
 import { useAuth } from "../auth";
-import { Modal, useAsyncData } from "../components";
+import { ErroCarregar, Modal, Notice, useAsyncData } from "../components";
+import { useConfirm, useToast, TableSkeleton } from "../ux";
 import type { Categoria, Page, Produto } from "../types";
 
 interface FormProduto {
@@ -10,13 +11,16 @@ interface FormProduto {
   unidadeMedida: string;
   estoqueMinimo: string;
   saldoNovo: string;
+  preco: string;
 }
 
-const formVazio: FormProduto = { nome: "", categoriaId: "", unidadeMedida: "UN", estoqueMinimo: "7", saldoNovo: "" };
+const formVazio: FormProduto = { nome: "", categoriaId: "", unidadeMedida: "UN", estoqueMinimo: "7", saldoNovo: "", preco: "" };
 
 export default function Produtos() {
   const { auth } = useAuth();
   const admin = auth?.perfil === "ADMIN";
+  const { confirmar } = useConfirm();
+  const { toast } = useToast();
 
   const { data, error, loading, reload } = useAsyncData<Page<Produto>>(
     () => api.get("/api/produtos?page=0&size=1000"),
@@ -35,6 +39,7 @@ export default function Produtos() {
   const [salvando, setSalvando] = useState(false);
   const [recalcando, setRecalcando] = useState(false);
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState<{ tipo: "ok" | "danger"; msg: string } | null>(null);
 
   const listCategorias = useMemo(
     () =>
@@ -52,13 +57,21 @@ export default function Produtos() {
     return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [data, busca, filtroCat]);
 
-  if (loading) return <div className="muted">Carregando…</div>;
-  if (error) return <div className="empty">Erro: {error}</div>;
+  if (loading) return (
+    <div>
+      <div className="page-head">
+        <div><h1>Produtos</h1><p>Carregando catálogo…</p></div>
+      </div>
+      <TableSkeleton linhas={8} colunas={6} />
+    </div>
+  );
+  if (error) return <ErroCarregar message={error} onTentar={reload} />;
 
   function abrirNovo() {
     setForm({ ...formVazio });
     setEditando({} as Produto);
     setErro("");
+    setAviso(null);
   }
 
   function abrirEdicao(p: Produto) {
@@ -68,20 +81,27 @@ export default function Produtos() {
       unidadeMedida: p.unidadeMedida,
       estoqueMinimo: String(p.estoqueMinimo),
       saldoNovo: String(p.saldoAtual),
+      preco: p.precoUnitario != null ? String(p.precoUnitario) : "",
     });
     setEditando(p);
     setErro("");
+    setAviso(null);
   }
 
   async function salvar() {
     setSalvando(true);
     setErro("");
+    setAviso(null);
     try {
       const body = {
         nome: form.nome,
         categoriaId: form.categoriaId || null,
         unidadeMedida: form.unidadeMedida,
         estoqueMinimo: parseFloat(form.estoqueMinimo.replace(",", ".")),
+        precoUnitario: (() => {
+          const v = parseFloat((form.preco || "").replace(",", "."));
+          return Number.isNaN(v) ? null : v;
+        })(),
       };
       if (editando?.id) {
         await api.put(`/api/produtos/${editando.id}`, body);
@@ -101,6 +121,7 @@ export default function Produtos() {
       }
       setEditando(null);
       reload();
+      toast(editando?.id ? `Produto "${form.nome}" atualizado.` : `Produto "${form.nome}" criado.`);
     } catch (e: unknown) {
       setErro((e as Error).message || "Erro ao salvar.");
     } finally {
@@ -113,22 +134,41 @@ export default function Produtos() {
   }
 
   async function excluir(p: Produto) {
-    if (!window.confirm(`Excluir "${p.nome}"?`)) return;
+    const ok = await confirmar({
+      titulo: "Excluir produto",
+      texto: <>Excluir <strong>{p.nome}</strong> ({formatQtd(p.saldoAtual)} {p.unidadeMedida})? Esta ação não pode ser desfeita.</>,
+      confirmarLabel: "Excluir",
+      perigo: true,
+    });
+    if (!ok) return;
+    setAviso(null);
     try {
       await api.del(`/api/produtos/${p.id}`);
+      setAviso({ tipo: "ok", msg: `Produto "${p.nome}" excluído.` });
       reload();
+      toast(`Produto excluído: ${p.nome}`, "danger");
     } catch (e: unknown) {
-      window.alert((e as Error).message || "Erro ao excluir.");
+      setAviso({ tipo: "danger", msg: (e as Error).message || "Erro ao excluir." });
     }
   }
 
-  async function recalcularParametros() {
+  async function resetarParametros() {
+    const ok = await confirmar({
+      titulo: "Resetar parâmetros de estoque",
+      texto: "O saldo atual e o estoque mínimo de todos os produtos serão zerados. Continuar?",
+      confirmarLabel: "Resetar tudo",
+      perigo: true,
+    });
+    if (!ok) return;
     setRecalcando(true);
+    setAviso(null);
     try {
-      await api.post("/api/parametros-estoque/recalcular-todos");
+      await api.post("/api/parametros-estoque/resetar-todos");
+      setAviso({ tipo: "ok", msg: "Parâmetros de estoque de todos os produtos resetados." });
       reload();
+      toast("Parâmetros de estoque resetados.");
     } catch (e: unknown) {
-      window.alert((e as Error).message || "Erro ao recalcular parâmetros.");
+      setAviso({ tipo: "danger", msg: (e as Error).message || "Erro ao resetar parâmetros." });
     } finally {
       setRecalcando(false);
     }
@@ -158,14 +198,16 @@ export default function Produtos() {
           </select>
           {admin && (
             <>
-              <button className="btn" disabled={recalcando} onClick={recalcularParametros}>
-                {recalcando ? "Calculando…" : "Recalcular parâmetros"}
+              <button className="btn" disabled={recalcando} onClick={resetarParametros}>
+                {recalcando ? "Resetando…" : "Resetar parâmetros"}
               </button>
               <button className="btn primary" onClick={abrirNovo}>+ Novo produto</button>
             </>
           )}
         </div>
       </div>
+
+      {aviso && <Notice tipo={aviso.tipo}>{aviso.msg}</Notice>}
 
       <div className="table-wrap">
         <table className="tbl">
@@ -176,6 +218,7 @@ export default function Produtos() {
               <th>Unidade</th>
               <th className="num">Saldo atual</th>
               <th className="num">Estoque mínimo</th>
+              <th className="num">Custo unit.</th>
               {admin && <th style={{ width: 120 }}>Ações</th>}
             </tr>
           </thead>
@@ -194,6 +237,7 @@ export default function Produtos() {
                     {abaixo && <span className="badge danger">Repor</span>}
                   </td>
                   <td className="num">{formatQtd(p.estoqueMinimo)}</td>
+                  <td className="num">{p.precoUnitario != null ? formatMoney(p.precoUnitario) : "—"}</td>
                   {admin && (
                     <td>
                       <button className="btn small" onClick={() => abrirEdicao(p)}>Editar</button>{" "}
@@ -204,7 +248,7 @@ export default function Produtos() {
               );
             })}
             {filtrados.length === 0 && (
-              <tr><td colSpan={admin ? 6 : 5} className="empty">Nenhum produto encontrado.</td></tr>
+              <tr><td colSpan={admin ? 7 : 6} className="empty">Nenhum produto encontrado.</td></tr>
             )}
           </tbody>
         </table>
@@ -243,6 +287,18 @@ export default function Produtos() {
                 value={form.estoqueMinimo}
                 onChange={(e) => setForm({ ...form, estoqueMinimo: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label>Custo unitário (R$)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={form.preco}
+                onChange={(e) => setForm({ ...form, preco: e.target.value })}
+              />
+              <span className="muted small">Opcional. Deixe em branco se não souber.</span>
             </div>
             {editando.id && (
               <div className="field">

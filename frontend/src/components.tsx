@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect, useId } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
 export function Modal({
@@ -13,6 +13,16 @@ export function Modal({
   wide?: boolean;
 }) {
   const reduce = useReducedMotion();
+  const titleId = useId();
+
+  useEffect(() => {
+    function onKey(ev: KeyboardEvent) {
+      if (ev.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <motion.div
       className="modal-backdrop"
@@ -22,14 +32,38 @@ export function Modal({
     >
       <motion.div
         className={`modal${wide ? " wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 12 }}
         animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       >
-        <h3>{title}</h3>
+        <h3 id={titleId}>{title}</h3>
         {children}
       </motion.div>
     </motion.div>
+  );
+}
+
+export function Notice({ tipo = "ok", children }: { tipo?: "ok" | "danger"; children: ReactNode }) {
+  return (
+    <div className={`aviso ${tipo}`} role={tipo === "danger" ? "alert" : "status"}>
+      {children}
+    </div>
+  );
+}
+
+export function ErroCarregar({ message, onTentar }: { message: string; onTentar?: () => void }) {
+  return (
+    <div className="aviso danger" role="alert">
+      <strong>Erro ao carregar.</strong> {message}
+      {onTentar && (
+        <button className="btn small" style={{ marginLeft: 10 }} onClick={onTentar}>
+          Tentar novamente
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -53,6 +87,10 @@ export function Badge({ status }: { status: string }) {
     SOBRA: { cls: "ok", label: "Sobra" },
     VENCIDO: { cls: "danger", label: "Vencido" },
     ABERTO_EMB: { cls: "info", label: "Aberto" },
+    EXCELENTE: { cls: "ok", label: "Excelente" },
+    DENTRO_DA_META: { cls: "ok", label: "Dentro da meta" },
+    CRITICO: { cls: "danger", label: "Crítico" },
+    SEM_VENDAS: { cls: "neutral", label: "Sem vendas" },
   };
   const m = map[status] || { cls: "neutral", label: status };
   return <span className={`badge ${m.cls}`}>{m.label}</span>;
@@ -106,5 +144,5 @@ export function useAsyncData<T>(fn: () => Promise<T>, deps: unknown[] = []) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   React.useEffect(reload, [reload]);
-  return { data, error, loading, reload };
+  return { data, error, loading, reload, setData };
 }
