@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { api } from "../api";
 import { Modal } from "../components";
 import { parseCupom, type CupomParseResult, type ItemCupom } from "../cupom";
 import { casarProduto } from "../match";
-import type { Produto } from "../types";
+import type { CupomLeituraDTO, Produto } from "../types";
 
 type Modo = "texto" | "xml" | "foto";
 
@@ -33,6 +34,21 @@ function montarLinhas(res: CupomParseResult, produtos: Produto[]): LinhaConfirma
       novoNome: it.nome,
       quantidade: String(it.quantidade ?? 1),
       valorUnitario: it.valorUnitario != null ? String(it.valorUnitario) : "",
+    };
+  });
+}
+
+function montarLinhasDto(dto: CupomLeituraDTO, produtos: Produto[]): LinhaConfirmacao[] {
+  return (dto.itens || []).map((it, i) => {
+    const p = casarProduto(it.descricao, produtos);
+    return {
+      key: `${i}-${it.descricao}`,
+      original: it.descricao,
+      produtoId: p?.id || "",
+      nomeProduto: p?.nome || "",
+      novoNome: it.descricao,
+      quantidade: String(it.quantidade ?? 1),
+      valorUnitario: it.precoUnitario != null ? String(it.precoUnitario) : "",
     };
   });
 }
@@ -100,33 +116,28 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
     if (!file) return;
     setErro("");
     setOcrAtivo(true);
-    setStatus("Lendo o texto da foto… (pode levar alguns segundos)");
+    setStatus("Enviando e processando a imagem… (pode levar alguns segundos)");
     try {
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker("por");
-      const ret = await worker.recognize(file);
-      const ocrTexto = ret?.data?.text || "";
-      await worker.terminate();
-      if (!ocrTexto.trim()) {
-        setErro("Não foi possível ler texto na imagem. Tente uma foto mais nítida e com boa iluminação.");
+      const dto = await api.upload<CupomLeituraDTO>("/api/cupons/ler", file);
+      const ls = montarLinhasDto(dto, produtos);
+      if (ls.length === 0) {
+        setErro("Não foi possível identificar produtos neste cupom. Tente uma foto mais nítida e com boa iluminação.");
         setOcrAtivo(false);
         return;
       }
-      const res = parseCupom(ocrTexto);
-      if (res.itens.length === 0) {
-        setTexto(ocrTexto);
-        setOcrAtivo(false);
-        setErro("OCR leu o texto, mas não reconheceu itens. Veja abaixo o que foi lido e corrija.");
-        return;
-      }
-      aplicarResultado(res, "Foto (OCR)");
+      setLinhas(ls);
+      const info = [
+        dto.fonte === "OCR" ? "Foto (OCR)" : "Foto (QR/NFC-e)",
+        dto.estabelecimento || null,
+        dto.data || null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      setBaseInfo(info);
+      setErro("");
+      setStatus(`Encontrados ${ls.length} itens. Confira e confirme.`);
     } catch (e: unknown) {
-      const msg = (e as Error).message || "";
-      if (/dynamically imported module|preloadError|Failed to fetch/.test(msg)) {
-        setErro("Não deu para carregar o leitor de fotos (app desatualizado). Atualize a página (F5) e tente de novo.");
-      } else {
-        setErro(msg || "Erro ao ler a foto.");
-      }
+      setErro((e as Error).message || "Erro ao ler a foto.");
     } finally {
       setOcrAtivo(false);
     }
@@ -204,7 +215,7 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
 
       {modo === "foto" && (
         <div>
-          <p className="muted small">Envie uma imagem do cupom/nota (papel ou tela) — o app lê os itens por reconhecimento de texto (OCR). <span style={{ color: "var(--warn)" }}>Requer internet na primeira vez e boa leitura.</span></p>
+          <p className="muted small">Envie uma imagem do cupom/nota (papel ou tela) — o app tenta ler o QR Code da NFC-e e, se não houver, usa reconhecimento de texto (OCR).</p>
           <input
             type="file"
             accept="image/*"
@@ -212,15 +223,6 @@ export function CupomScanner({ produtos, onFechar, onConfirmar }: Props) {
             onChange={(e) => lerFoto(e.target.files?.[0] || null)}
           />
           {ocrAtivo && <div className="muted small" style={{ marginTop: 8 }}>{status}</div>}
-          {modo === "foto" && texto && !temItens && (
-            <div style={{ marginTop: 12 }}>
-              <p className="small muted"><strong>Texto lido (OCR):</strong></p>
-              <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={6} style={{ width: "100%", boxSizing: "border-box", padding: 10, fontFamily: "monospace" }} />
-              <div className="form-actions" style={{ marginTop: 8 }}>
-                <button className="btn primary" onClick={() => aplicarResultado(parseCupom(texto), "Texto (OCR)")}>Ler itens do texto</button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

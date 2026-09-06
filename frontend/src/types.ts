@@ -298,3 +298,18 @@ export type MotivoDesperdicio =
 export type PeriodicidadeBalanco = "DIARIA" | "SEMANAL" | "MENSAL";
 
 export type TipoRelatorio = "ESTOQUE_ATUAL" | "PROXIMO_VENCIMENTO" | "VENCIDOS" | "PRODUTOS_ABERTOS" | "DESPERDICIO" | "CONSUMO_MEDIO";
+
+export interface ItemCupomLeituraDTO {
+  descricao: string;
+  quantidade: number;
+  precoUnitario: number | null;
+  precoTotal: number | null;
+}
+
+export interface CupomLeituraDTO {
+  estabelecimento: string | null;
+  data: string | null;
+  fonte: "QR_CODE" | "XML_NFC_E" | "OCR";
+  baixaConfianca: boolean;
+  itens: ItemCupomLeituraDTO[];
+}
