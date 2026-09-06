@@ -1,6 +1,7 @@
 package com.estoq.business.movimentacao;
 
 import com.estoq.business.auditoria.AuditService;
+import com.estoq.business.configuracao.ConfiguracaoService;
 import com.estoq.business.movimentacao.MovimentacaoView;
 import com.estoq.business.produtoaberto.ProdutoAbertoView;
 import com.estoq.business.balanco.ItemBalancoModel;
@@ -52,6 +53,9 @@ public class MovimentacaoService {
 
 	@Autowired
 	private AuditService auditService;
+
+	@Autowired
+	private ConfiguracaoService configuracaoService;
 
 	// ------------------------------------------------------------------ entradas
 
@@ -565,6 +569,6 @@ public class MovimentacaoService {
 	}
 
 	public BigDecimal getMetaCmv() {
-		return META_CMV;
+		return configuracaoService.obterBigDecimal(ConfiguracaoService.META_CMV, META_CMV);
 	}
 }

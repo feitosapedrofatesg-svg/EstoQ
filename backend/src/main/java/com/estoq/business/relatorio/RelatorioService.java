@@ -113,7 +113,7 @@ public class RelatorioService {
 		rel.setDataInicio(ini);
 		rel.setDataFim(f);
 		rel.setVendas(resolverVendas(ini, f, vendas));
-		rel.setMetaCmv(META_CMV);
+		rel.setMetaCmv(configuracaoService.obterBigDecimal(ConfiguracaoService.META_CMV, META_CMV));
 
 		LocalDateTime iniDt = ini.atStartOfDay();
 		LocalDateTime fimDt = f.plusDays(1).atStartOfDay();
@@ -549,7 +549,7 @@ public class RelatorioService {
 		DashboardDTO dto = new DashboardDTO();
 		dto.setAno(ano);
 		dto.setMes(mes);
-		dto.setMetaCmv(META_CMV);
+		dto.setMetaCmv(configuracaoService.obterBigDecimal(ConfiguracaoService.META_CMV, META_CMV));
 		dto.setConsumoMes(cmvMes.getTotalConsumo());
 		dto.setDesperdicioMes(cmvMes.getTotalDesperdicio());
 		dto.setCmvMes(cmvMes.getTotalGeral());

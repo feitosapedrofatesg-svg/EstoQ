@@ -245,9 +245,10 @@ export default function Relatorios() {
     }
   }
 
-  // vendas do mês, meta de desperdício e backup
+  // vendas do mês, meta de desperdício, meta de CMV e backup
   const [vendasMesInput, setVendasMesInput] = useState("");
   const [metaDespInput, setMetaDespInput] = useState("10");
+  const [metaCmvInput, setMetaCmvInput] = useState("40");
   const [salvandoSistema, setSalvandoSistema] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [mensagemSistema, setMensagemSistema] = useState<{ tipo: "ok" | "danger"; msg: string } | null>(null);
@@ -258,6 +259,7 @@ export default function Relatorios() {
       setMetaDespInput(
         Math.round(dash.metaDesperdicio * 1000) / 10 + ""
       );
+      setMetaCmvInput(Math.round(dash.metaCmv * 1000) / 10 + "");
     }
   }, [dash]);
 
@@ -286,6 +288,22 @@ export default function Relatorios() {
       reloadDash();
     } catch (e: unknown) {
       setMensagemSistema({ tipo: "danger", msg: (e as Error).message || "Erro ao salvar a meta de desperdício." });
+    } finally {
+      setSalvandoSistema(false);
+    }
+  }
+
+  async function salvarMetaCmv() {
+    setSalvandoSistema(true);
+    setMensagemSistema(null);
+    try {
+      await api.put("/api/configuracoes/meta.cmv.percentual", {
+        valor: metaCmvInput.replace(",", ".") || "40",
+      });
+      setMensagemSistema({ tipo: "ok", msg: "Meta de % CMV atualizada." });
+      reloadDash();
+    } catch (e: unknown) {
+      setMensagemSistema({ tipo: "danger", msg: (e as Error).message || "Erro ao salvar a meta de % CMV." });
     } finally {
       setSalvandoSistema(false);
     }
@@ -562,6 +580,18 @@ export default function Relatorios() {
                 <button className="btn small" disabled={salvandoSistema} onClick={salvarMetaDesperdicio}>
                   Salvar meta
                 </button>
+                <label className="muted small" style={{ marginLeft: 8 }}>Meta % CMV:</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={metaCmvInput}
+                  style={{ width: 80 }}
+                  onChange={(e) => setMetaCmvInput(e.target.value)}
+                />
+                <button className="btn small" disabled={salvandoSistema} onClick={salvarMetaCmv}>
+                  Salvar meta
+                </button>
                 {admin && (
                   <button className="btn small" disabled={salvandoSistema} onClick={fazerBackup}>
                     {salvandoSistema ? "Aguarde…" : "Fazer backup agora"}
@@ -572,60 +602,6 @@ export default function Relatorios() {
                 O % de CMV do dashboard usa as vendas informadas acima. O backup cria um arquivo em{" "}
                 <code>backups/</code> junto ao sistema.
               </p>
-            </div>
-
-            <div className="card card-pad" style={{ marginTop: 18 }}>
-              <div className="filtro-line" style={{ marginBottom: 0 }}>
-                <h3 style={{ margin: 0 }}>Auditoria recente</h3>
-                <button className="btn small" onClick={reloadDash}>Atualizar</button>
-              </div>
-              {dash.ultimosEventos.length === 0 ? (
-                <div className="empty">Nenhum evento registrado.</div>
-              ) : (
-                <ul className="alert-list">
-                  {dash.ultimosEventos.map((ev) => (
-                    <li key={ev.id}>
-                      <span>
-                        <strong>{ev.acao}</strong> · {ev.entidade}
-                        {ev.descricao ? ` — ${ev.descricao}` : ""}
-                        <span className="muted small"> · {ev.usuarioNome} · {formatDateTime(ev.dataHora)}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {dash.balancoPendente && (
-              <div className="aviso" style={{ marginTop: 14 }}>
-                <strong>Balanço pendente.</strong> Realize a conferência física do estoque pela tela de Conferência.
-              </div>
-            )}
-
-            <div className="card card-pad" style={{ marginTop: 18 }}>
-              <div className="filtro-line" style={{ marginBottom: 0 }}>
-                <h3 style={{ margin: 0 }}>Alertas pendentes</h3>
-                <button className="btn small" onClick={gerarAlertas}>Gerar alertas</button>
-              </div>
-              {dash.principaisAlertas.length === 0 ? (
-                <div className="empty">Nenhum alerta pendente.</div>
-              ) : (
-                <ul className="alert-list">
-                  {dash.principaisAlertas.map((a) => (
-                    <li key={a.id}>
-                      <span>
-                        <strong>{a.mensagem}</strong>{" "}
-                        <span className="muted small">· {formatDateTime(a.dataGeracao)}</span>{" "}
-                        {a.produtoNome && <span className="small">{a.produtoNome}</span>}
-                      </span>
-                      <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <Badge status={a.tipo} />
-                        <button className="btn small" onClick={() => marcarVisualizado(a)}>Marcar visualizado</button>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           </>
         ) : null}
@@ -731,6 +707,57 @@ export default function Relatorios() {
           </>
         )}
       </div>
+
+      {/* auditoria recente + alertas pendentes (abaixo do CMV) */}
+      {dash && dash.ultimosEventos.length > 0 && (
+        <div className="card card-pad" style={{ marginBottom: 22 }}>
+          <div className="filtro-line" style={{ marginBottom: 0 }}>
+            <h3 style={{ margin: 0 }}>Auditoria recente</h3>
+            <button className="btn small" onClick={reloadDash}>Atualizar</button>
+          </div>
+          <ul className="alert-list">
+            {dash.ultimosEventos.map((ev) => (
+              <li key={ev.id}>
+                <span>
+                  <strong>{ev.acao}</strong> · {ev.entidade}
+                  {ev.descricao ? ` — ${ev.descricao}` : ""}
+                  <span className="muted small"> · {ev.usuarioNome} · {formatDateTime(ev.dataHora)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {dash && dash.balancoPendente && (
+        <div className="aviso" style={{ marginTop: 14 }}>
+          <strong>Balanço pendente.</strong> Realize a conferência física do estoque pela tela de Conferência.
+        </div>
+      )}
+
+      {dash && dash.principaisAlertas.length > 0 && (
+        <div className="card card-pad" style={{ marginBottom: 22 }}>
+          <div className="filtro-line" style={{ marginBottom: 0 }}>
+            <h3 style={{ margin: 0 }}>Alertas pendentes</h3>
+            <button className="btn small" onClick={gerarAlertas}>Gerar alertas</button>
+          </div>
+          <ul className="alert-list">
+            {dash.principaisAlertas.map((a) => (
+              <li key={a.id}>
+                <span>
+                  <strong>{a.mensagem}</strong>{" "}
+                  <span className="muted small">· {formatDateTime(a.dataGeracao)}</span>{" "}
+                  {a.produtoNome && <span className="small">{a.produtoNome}</span>}
+                </span>
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <Badge status={a.tipo} />
+                  <button className="btn small" onClick={() => marcarVisualizado(a)}>Marcar visualizado</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* seção relatórios por tipo */}
       <div className="card card-pad">
