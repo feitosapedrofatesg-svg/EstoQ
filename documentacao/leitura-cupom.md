@@ -24,8 +24,11 @@ POST /api/cupons/ler (multipart: arquivo)
    └─ falha/fiscal indisponível → 3 (OCR)   ← nunca bloqueia
         ↓
 3. OcrService → tesseract do sistema (idioma "por")
+   ├─ prepara a imagem (tons de cinza + contraste + ampliação)
+   └─ roda com --psm 6 e --psm 4 e escolhe o melhor texto
         ↓
 4. CupomParser → interpreta o texto e extrai itens (qtd, preço)
+   └─ ignora linhas de rodapé/tributos (Federal/Estadual/ICMS/PIS/COFINS)
         ↓
 Resposta (CupomLeituraDTO): estabelecimento, data, itens, fonte, baixaConfianca
 ```
@@ -44,8 +47,8 @@ a prévia; a confirmação da entrada reutiliza o fluxo existente
 | `CupomService` | Orquestra QR → NFC-e → OCR → parser |
 | `QrCodeReader` | Detecta QR Code na imagem (ZXing) |
 | `NfceReader` | Consulta a URL da NFC-e e tenta extrair XML (isolado; falha → OCR) |
-| `OcrService` | OCR do texto da imagem (binário `tesseract` via ProcessBuilder) |
-| `CupomParser` | Interpreta o texto do OCR → itens/estabelecimento/data |
+| `OcrService` | OCR do texto da imagem (binário `tesseract` via ProcessBuilder); prepara a imagem (tons de cinza, contraste, ampliação) e escolhe entre `--psm 6`/`--psm 4` o melhor texto |
+| `CupomParser` | Interpreta o texto do OCR → itens/estabelecimento/data; ignora rodapé/tributos |
 | `CupomLeituraDTO` / `ItemCupomLeituraDTO` | Prévia (resposta da API) |
 
 Endpoint: `POST /api/cupons/ler` — `multipart/form-data`, campo `arquivo` (imagem).

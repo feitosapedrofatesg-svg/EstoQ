@@ -121,6 +121,19 @@ class CupomServiceTest {
 		assertEquals("OCR", dto.getFonte());
 	}
 
+	@Test
+	void parser_ignoraLinhasDeTributosERodape() {
+		CupomParser parser = new CupomParser();
+		String texto = "Federal * % is - Estadual : % R$\n"
+				+ "PIS/COFINS 2,00 0,10\n"
+				+ "ARROZ TIO JOAO 5KG      2,000        39,80\n"
+				+ "TOTAL R$ 39,80\n";
+		CupomLeituraDTO dto = parser.interpretar(texto);
+
+		assertEquals(1, dto.getItens().size());
+		assertEquals("ARROZ TIO JOAO 5KG", dto.getItens().get(0).getDescricao());
+	}
+
 	private CupomService novoService() {
 		CupomService service = new CupomService();
 		ReflectionTestUtils.setField(service, "cupomParser", new CupomParser());

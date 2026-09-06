@@ -58,8 +58,8 @@ public class CupomParser {
 	}
 
 	private ItemCupomLeituraDTO parseLinhaItem(String linha) {
-		// ignora linhas que claramente não são itens
-		if (linha.toLowerCase().matches("(?i)^(total|subtotal|troco|dinheiro|cart[aã]o|pix|cupom|nota|venda|item|qtd|desc|vltotal|cnpj|ie|ccf|coo|data|hora|obrigado|volte|valor|forma|pagto|extrato|sistema).*")) {
+		// ignora linhas que claramente não são itens (cabeçalho, rodapé, tributos)
+		if (linha.toLowerCase().matches("(?i)^(total|subtotal|troco|dinheiro|cart[aã]o|pix|cupom|nota|venda|item|qtd|desc|vltotal|cnpj|ie|ccf|coo|data|hora|obrigado|volte|valor|forma|pagto|extrato|sistema|federal|estadual|icms|pis|cofins|tribut|acr[ée]scimo).*")) {
 			return null;
 		}
 
